@@ -16,7 +16,7 @@ func TestVersion(t *testing.T) {
 	if Version == "" {
 		t.Error("Version should not be empty")
 	}
-	
+
 	// Version should follow semantic versioning pattern
 	if len(Version) < 5 || Version[0] != 'v' {
 		t.Errorf("Version %q should follow vX.Y.Z format", Version)
@@ -138,5 +138,32 @@ func TestChain(t *testing.T) {
 		if call != expected[i] {
 			t.Errorf("Expected call %d to be %s, got %s", i, expected[i], call)
 		}
+	}
+}
+
+func TestWithGoogleMetadataFlavor(t *testing.T) {
+	handler := WithGoogleMetadataFlavor(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("test"))
+	}))
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Header().Get("Metadata-Flavor") != "Google" {
+		t.Errorf("Expected Metadata-Flavor header to be 'Google', got %s", w.Header().Get("Metadata-Flavor"))
+	}
+
+	if w.Header().Get("Server") != "Metadata Server for Google Compute Engine" {
+		t.Errorf("Expected Server header to be 'Metadata Server for Google Compute Engine', got %s", w.Header().Get("Server"))
+	}
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	if w.Body.String() != "test" {
+		t.Errorf("Expected body 'test', got %s", w.Body.String())
 	}
 }

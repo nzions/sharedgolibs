@@ -12,10 +12,7 @@ This work is dedicated to the public domain under [CC0 1.0 Universal](LICENSE).
 Environment variable utilities and common helper functions.
 
 ### pkg/middleware  
-HTTP middleware for CORS, logging, and request handling.
-
-### pkg/version
-Version information and utilities.
+HTTP middleware for CORS, logging, Google metadata flavor headers, and request handling.
 
 ## Usage
 
@@ -23,7 +20,6 @@ Version information and utilities.
 import (
     "github.com/nzions/sharedgolibs/pkg/util"
     "github.com/nzions/sharedgolibs/pkg/middleware"
-    "github.com/nzions/sharedgolibs/pkg/version"
 )
 ```
 
