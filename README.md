@@ -2,6 +2,10 @@
 
 Common Go packages shared between allmytails and googleemu projects.
 
+## License
+
+This work is dedicated to the public domain under [CC0 1.0 Universal](LICENSE).
+
 ## Packages
 
 ### pkg/util
