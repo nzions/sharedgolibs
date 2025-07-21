@@ -4,11 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{{.Title}} - WEYLAND-YUTANI CA SYSTEM</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="/ui/static/js/htmx.min.js"></script>
+    <link rel="stylesheet" href="/ui/static/css/fonts.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
-
         * {
             box-sizing: border-box;
             margin: 0;
@@ -291,15 +293,16 @@
         }
 
         .table th {
-            background: linear-gradient(135deg, #001100 0%, #002200 100%);
+            background: linear-gradient(135deg, #002200 0%, #003300 100%);
             color: #00ff41;
             padding: 8px;
-            border: 1px solid #003300;
+            border: 1px solid #004400;
             text-align: left;
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 500;
+            text-shadow: 0 0 2px rgba(0, 255, 65, 0.3);
         }
 
         .table td {
@@ -311,7 +314,8 @@
         }
 
         .table tr:hover td {
-            background: rgba(0, 255, 65, 0.1);
+            background: rgba(0, 255, 65, 0.05);
+            border-color: #004400;
         }
 
         .badge {
@@ -400,28 +404,6 @@
             letter-spacing: 1px;
         }
 
-        .api-key-prompt {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .api-key-modal {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-            border: 1px solid #00ff41;
-            border-radius: 4px;
-            padding: 20px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
-        }
 
         .flicker {
             animation: flicker 2s infinite;
@@ -530,85 +512,75 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #1d1d1f;
+            color: #00ff41;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .form-input {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #d2d2d7;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 8px;
+            background: #000000;
+            border: 1px solid #003300;
+            border-radius: 2px;
+            color: #00ff41;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            transition: all 0.2s;
         }
 
         .form-input:focus {
             outline: none;
-            border-color: #007aff;
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 16px;
-        }
-
-        .table th,
-        .table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #d2d2d7;
-        }
-
-        .table th {
-            background: #f6f6f6;
-            font-weight: 600;
-        }
-
-        .table tr:hover {
-            background: #f9f9f9;
+            border-color: #00ff41;
+            box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
         }
 
         .badge {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             font-weight: 500;
         }
 
         .badge-success {
-            background: #d4f4dd;
-            color: #0f5132;
+            background: #004400;
+            color: #00ff41;
+            border: 1px solid #00ff41;
         }
 
         .badge-warning {
-            background: #fff3cd;
-            color: #664d03;
+            background: #442200;
+            color: #ffaa00;
+            border: 1px solid #ffaa00;
         }
 
         .badge-danger {
-            background: #f8d7da;
-            color: #842029;
+            background: #440000;
+            color: #ff4444;
+            border: 1px solid #ff4444;
         }
 
         .alert {
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 8px;
-            border: 1px solid transparent;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 2px;
+            font-size: 11px;
         }
 
         .alert-success {
-            color: #0f5132;
-            background-color: #d1e7dd;
-            border-color: #badbcc;
+            background: rgba(0, 68, 0, 0.3);
+            border: 1px solid #00ff41;
+            color: #00ff41;
         }
 
         .alert-error {
-            color: #842029;
-            background-color: #f8d7da;
-            border-color: #f5c2c7;
+            background: rgba(68, 0, 0, 0.3);
+            border: 1px solid #ff4444;
+            color: #ff4444;
         }
 
         .loading {
@@ -622,22 +594,7 @@
 </head>
 
 <body class="scanlines">
-    <!-- API Key Prompt Modal -->
-    {{if .RequireAPIKey}}
-    <div id="api-key-prompt" class="api-key-prompt">
-        <div class="api-key-modal">
-            <h3 class="flicker">AUTHORIZATION REQUIRED</h3>
-            <p style="margin-bottom: 15px; color: #66ff66; font-size: 11px;">
-                ENTER SECURITY CLEARANCE CODE TO ACCESS WEYLAND-YUTANI CA SYSTEM
-            </p>
-            <div class="form-group">
-                <label class="form-label">API KEY</label>
-                <input type="password" id="api-key-input" class="form-input" placeholder="Enter API key..." />
-            </div>
-            <button onclick="submitAPIKey()" class="btn btn-primary">AUTHENTICATE</button>
-        </div>
-    </div>
-    {{end}}
+
 
     <div class="container">
         <div class="header">
@@ -647,11 +604,20 @@
                 <a href="/ui/" class="nav-link {{if eq .Page " dashboard"}}active{{end}}">MAIN</a>
                 <a href="/ui/certs" class="nav-link {{if eq .Page " certs"}}active{{end}}">CERTS</a>
                 <a href="/ui/generate" class="nav-link {{if eq .Page " generate"}}active{{end}}">ISSUE</a>
+                <a href="/ui/api" class="nav-link {{if eq .Page " api"}}active{{end}}">API</a>
             </nav>
         </div>
 
         <div class="content">
-            {{template "content" .}}
+            {{if eq .Page "dashboard"}}
+            {{template "dashboard-content" .}}
+            {{else if eq .Page "certs"}}
+            {{template "certificates-content" .}}
+            {{else if eq .Page "generate"}}
+            {{template "generate-content" .}}
+            {{else if eq .Page "api"}}
+            {{template "api-content" .}}
+            {{end}}
         </div>
     </div>
 
@@ -664,32 +630,6 @@
                 }
             }, 30000);
         }
-
-        // API Key handling
-        function submitAPIKey() {
-            const apiKey = document.getElementById('api-key-input').value;
-            if (apiKey) {
-                // Set API key in session storage
-                sessionStorage.setItem('ca-api-key', apiKey);
-                // Add to all future requests
-                document.addEventListener('htmx:configRequest', function (evt) {
-                    evt.detail.headers['X-API-Key'] = apiKey;
-                });
-                // Hide prompt
-                document.getElementById('api-key-prompt').style.display = 'none';
-                // Reload page with API key
-                window.location.href = window.location.pathname + '?api_key=' + encodeURIComponent(apiKey);
-            }
-        }
-
-        // Check for stored API key
-        window.addEventListener('load', function () {
-            const storedKey = sessionStorage.getItem('ca-api-key');
-            if (storedKey && document.getElementById('api-key-prompt')) {
-                document.getElementById('api-key-input').value = storedKey;
-                submitAPIKey();
-            }
-        });
 
         // Live log streaming
         function connectLogStream() {

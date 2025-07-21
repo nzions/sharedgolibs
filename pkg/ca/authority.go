@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Version = "v1.1.0"
+	Version = "v1.2.2"
 )
 
 // CA represents a Certificate Authority with the ability to issue certificates
