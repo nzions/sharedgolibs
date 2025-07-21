@@ -11,7 +11,7 @@ func TestVersion(t *testing.T) {
 	if Version == "" {
 		t.Error("Version should not be empty")
 	}
-	
+
 	// Version should follow semantic versioning pattern
 	if len(Version) < 5 || Version[0] != 'v' {
 		t.Errorf("Version %q should follow vX.Y.Z format", Version)
