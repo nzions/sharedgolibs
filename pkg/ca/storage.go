@@ -273,6 +273,7 @@ func generateCertificateInternal(ca *CA, serviceName, serviceIP string, domains 
 		IssuedAt:     time.Now(),
 		ExpiresAt:    template.NotAfter,
 		Certificate:  string(serviceCertPEM),
+		PrivateKey:   string(serviceKeyPEM),
 		SerialNumber: fmt.Sprintf("%x", serialNumber),
 	}
 

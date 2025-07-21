@@ -1,126 +1,178 @@
 {{define "content"}}
-<div class="stats">
-    <div class="stat">
+<!-- System Status Grid -->
+<div class="grid">
+    <div class="stat-panel">
         <div class="stat-value">{{.CertCount}}</div>
-        <div class="stat-label">Certificates Issued</div>
+        <div class="stat-label">CERTIFICATES ISSUED</div>
     </div>
-    <div class="stat">
+    <div class="stat-panel">
         <div class="stat-value">{{.CAValidUntil}}</div>
-        <div class="stat-label">CA Valid Until</div>
+        <div class="stat-label">CA EXPIRY</div>
     </div>
-    <div class="stat">
-        <div class="stat-value">{{.CASerialNumber}}</div>
-        <div class="stat-label">CA Serial Number</div>
-    </div>
-    <div class="stat">
-        <div class="stat-value">{{.Version}}</div>
-        <div class="stat-label">CA Version</div>
+    <div class="stat-panel">
+        <div class="stat-value">ACTIVE</div>
+        <div class="stat-label">SYSTEM STATUS</div>
     </div>
 </div>
 
-<div class="card">
-    <h3>Quick Actions</h3>
-    <p style="margin-bottom: 16px;">Manage your certificates and CA configuration.</p>
-    <a href="/ui/certs" class="btn">📋 View All Certificates</a>
-    <a href="/ui/generate" class="btn btn-success">🔐 Generate New Certificate</a>
-    <a href="/ui/download-ca" class="btn">⬇️ Download Root CA</a>
+<!-- Root CA Information and Downloads -->
+<div class="panel">
+    <h3>ROOT CERTIFICATE AUTHORITY</h3>
+    <div class="grid grid-2">
+        <div>
+            <dl class="cert-details">
+                <dt>SUBJECT</dt>
+                <dd>{{.CASubject}}</dd>
+                <dt>SERIAL</dt>
+                <dd>{{.CASerialNumber}}</dd>
+                <dt>VALID FROM</dt>
+                <dd>{{.CAValidFrom}}</dd>
+                <dt>VALID UNTIL</dt>
+                <dd>{{.CAValidUntil}}</dd>
+                <dt>KEY ALGORITHM</dt>
+                <dd>{{.CAKeyAlgorithm}}</dd>
+                <dt>SIGNATURE</dt>
+                <dd>{{.CASignatureAlgorithm}}</dd>
+            </dl>
+        </div>
+        <div>
+            <h4>DOWNLOAD ROOT CA</h4>
+            <div class="download-links">
+                <a href="/ca" class="btn" onclick="downloadFile('/ca', 'root-ca.crt')">
+                    ROOT CERT (PEM)
+                </a>
+                <a href="/ca-key" class="btn btn-danger" onclick="downloadFile('/ca-key', 'root-ca.key')" 
+                   title="WARNING: Private key - keep secure!">
+                    ROOT KEY (PEM)
+                </a>
+                <a href="/ca?format=der" class="btn" onclick="downloadFile('/ca?format=der', 'root-ca.der')">
+                    ROOT CERT (DER)
+                </a>
+            </div>
+            <p style="color: #ff4444; font-size: 9px; margin-top: 8px;">
+                ⚠️ PRIVATE KEY ACCESS LOGGED AND MONITORED
+            </p>
+        </div>
+    </div>
 </div>
 
-<div class="card">
-    <h3>Recent Certificates</h3>
+<!-- Issued Certificates -->
+<div class="panel">
+    <h3>ISSUED CERTIFICATES</h3>
     {{if .RecentCerts}}
-    <table class="table">
+    <table class="table" hx-get="/ui/certs-table" hx-trigger="load, every 30s" hx-swap="outerHTML">
         <thead>
             <tr>
-                <th>Service Name</th>
-                <th>Domains</th>
-                <th>Issued</th>
-                <th>Expires</th>
-                <th>Status</th>
+                <th>SERVICE</th>
+                <th>COMMON NAME</th>
+                <th>SUBJECT ALT NAMES</th>
+                <th>SERIAL</th>
+                <th>ISSUED</th>
+                <th>EXPIRES</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
             </tr>
         </thead>
         <tbody>
             {{range .RecentCerts}}
             <tr>
                 <td><strong>{{.ServiceName}}</strong></td>
-                <td>{{range $index, $domain := .Domains}}{{if $index}}, {{end}}{{$domain}}{{end}}</td>
-                <td>{{.IssuedAt.Format "2006-01-02 15:04"}}</td>
-                <td>{{.ExpiresAt.Format "2006-01-02 15:04"}}</td>
+                <td><code>{{index .Domains 0}}</code></td>
+                <td>
+                    {{if gt (len .Domains) 1}}
+                    <details>
+                        <summary>{{len .Domains}} domains</summary>
+                        {{range .Domains}}
+                        <div><code>{{.}}</code></div>
+                        {{end}}
+                    </details>
+                    {{else}}
+                    <code>{{index .Domains 0}}</code>
+                    {{end}}
+                </td>
+                <td><code>{{.SerialNumber}}</code></td>
+                <td>{{.IssuedAt.Format "01-02 15:04"}}</td>
+                <td>{{.ExpiresAt.Format "01-02 15:04"}}</td>
                 <td>
                     {{if .IsExpired}}
-                    <span class="badge badge-danger">Expired</span>
+                    <span class="badge badge-danger">EXPIRED</span>
                     {{else if .IsExpiringSoon}}
-                    <span class="badge badge-warning">Expiring Soon</span>
+                    <span class="badge badge-warning">EXPIRING</span>
                     {{else}}
-                    <span class="badge badge-success">Valid</span>
+                    <span class="badge badge-success">VALID</span>
                     {{end}}
+                </td>
+                <td>
+                    <div class="download-links">
+                        <a href="/cert/{{.SerialNumber}}" class="btn" 
+                           onclick="downloadFile('/cert/{{.SerialNumber}}', '{{.ServiceName}}.crt')" 
+                           title="Download certificate">CERT</a>
+                        <a href="/cert/{{.SerialNumber}}/key" class="btn btn-danger" 
+                           onclick="downloadFile('/cert/{{.SerialNumber}}/key', '{{.ServiceName}}.key')" 
+                           title="Download private key">KEY</a>
+                    </div>
                 </td>
             </tr>
             {{end}}
         </tbody>
     </table>
-    <div style="margin-top: 16px;">
-        <a href="/ui/certs" class="btn">View All Certificates →</a>
+    {{if gt (len .AllCerts) 5}}
+    <div style="margin-top: 10px;">
+        <a href="/ui/certs" class="btn">VIEW ALL {{len .AllCerts}} CERTIFICATES</a>
     </div>
+    {{end}}
     {{else}}
-    <p style="color: #86868b; text-align: center; padding: 40px;">
-        No certificates issued yet. <a href="/ui/generate">Generate your first certificate</a> to get started.
-    </p>
+    <div style="text-align: center; padding: 20px; color: #66ff66;">
+        <p>NO CERTIFICATES ISSUED</p>
+        <a href="/ui/generate" class="btn btn-primary">GENERATE FIRST CERTIFICATE</a>
+    </div>
     {{end}}
 </div>
 
-<div class="card">
-    <h3>API Endpoints</h3>
-    <p style="margin-bottom: 16px;">Use these endpoints to integrate with your applications.</p>
-
-    <h4>Download CA Certificate</h4>
-    <pre><code>GET /ca</code></pre>
-    <p style="margin-bottom: 16px;">Download the root CA certificate to trust this CA.</p>
-
-    <h4>Request Service Certificate</h4>
-    <pre><code>POST /cert
-Content-Type: application/json
-
-{
-  "service_name": "my-service",
-  "service_ip": "192.168.1.10",
-  "domains": ["my-service.local", "api.my-service.local"]
-}</code></pre>
-
-    <h4>Health Check</h4>
-    <pre><code>GET /health</code></pre>
-    <p>Check the CA server status and get basic information.</p>
+<!-- Quick Actions -->
+<div class="panel">
+    <h3>OPERATIONS</h3>
+    <div class="download-links">
+        <a href="/ui/generate" class="btn btn-primary">ISSUE NEW CERTIFICATE</a>
+        <a href="/ui/certs" class="btn">VIEW ALL CERTIFICATES</a>
+        <a href="/health" class="btn" target="_blank">SYSTEM HEALTH</a>
+        <a href="/ui/api-docs" class="btn">API DOCUMENTATION</a>
+    </div>
 </div>
 
-<div class="card">
-    <h3>Certificate Authority Information</h3>
-    <table class="table">
-        <tbody>
-            <tr>
-                <td><strong>Subject</strong></td>
-                <td>{{.CASubject}}</td>
-            </tr>
-            <tr>
-                <td><strong>Serial Number</strong></td>
-                <td>{{.CASerialNumber}}</td>
-            </tr>
-            <tr>
-                <td><strong>Valid From</strong></td>
-                <td>{{.CAValidFrom}}</td>
-            </tr>
-            <tr>
-                <td><strong>Valid Until</strong></td>
-                <td>{{.CAValidUntil}}</td>
-            </tr>
-            <tr>
-                <td><strong>Key Algorithm</strong></td>
-                <td>{{.CAKeyAlgorithm}}</td>
-            </tr>
-            <tr>
-                <td><strong>Signature Algorithm</strong></td>
-                <td>{{.CASignatureAlgorithm}}</td>
-            </tr>
-        </tbody>
-    </table>
+<!-- API Endpoints -->
+<div class="panel">
+    <h3>API ENDPOINTS</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px;">
+        <div>
+            <h4>CERTIFICATE OPERATIONS</h4>
+            <code>GET /ca</code> - Download root CA<br>
+            <code>POST /cert</code> - Request certificate<br>
+            <code>GET /cert/{serial}</code> - Download cert<br>
+            <code>GET /cert/{serial}/key</code> - Download key<br>
+        </div>
+        <div>
+            <h4>SYSTEM OPERATIONS</h4>
+            <code>GET /health</code> - Health check<br>
+            <code>GET /ui/logs</code> - Live log stream<br>
+            <code>GET /ui/certs-table</code> - Cert table<br>
+        </div>
+    </div>
+    
+    <h4 style="margin-top: 15px;">EXAMPLE REQUEST</h4>
+    <pre><code>curl -X POST {{.BaseURL}}/cert \
+  -H "Content-Type: application/json" \
+  {{if .RequireAPIKey}}-H "X-API-Key: YOUR_API_KEY" \{{end}}
+  -d '{
+    "service_name": "web-service",
+    "service_ip": "192.168.1.100",
+    "domains": ["web.local", "api.web.local"]
+  }'</code></pre>
+</div>
+
+<!-- Live System Logs -->
+<div class="panel">
+    <h3>SYSTEM LOG STREAM</h3>
+    <div id="log-stream" class="terminal"></div>
 </div>
 {{end}}

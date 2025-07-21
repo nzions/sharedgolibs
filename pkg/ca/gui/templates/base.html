@@ -215,41 +215,293 @@
         }
 
         .btn {
-            background: #007aff;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
+            background: linear-gradient(135deg, #003300 0%, #005500 100%);
+            color: #00ff41;
+            padding: 8px 12px;
+            border: 1px solid #00ff41;
+            border-radius: 2px;
             text-decoration: none;
             display: inline-block;
-            margin: 8px 8px 8px 0;
+            margin: 4px 4px 4px 0;
             cursor: pointer;
             font-weight: 500;
-            transition: background 0.2s;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+            font-family: 'IBM Plex Mono', monospace;
         }
 
         .btn:hover {
-            background: #0056cc;
+            background: linear-gradient(135deg, #005500 0%, #007700 100%);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+            text-shadow: 0 0 5px #00ff41;
         }
 
-        .btn-success {
-            background: #34c759;
-        }
-
-        .btn-success:hover {
-            background: #2fb344;
+        .btn-primary {
+            background: linear-gradient(135deg, #004400 0%, #006600 100%);
         }
 
         .btn-danger {
-            background: #ff3b30;
+            background: linear-gradient(135deg, #330000 0%, #550000 100%);
+            border-color: #ff4444;
+            color: #ff4444;
         }
 
         .btn-danger:hover {
-            background: #d70015;
+            background: linear-gradient(135deg, #550000 0%, #770000 100%);
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            display: block;
+            color: #00ff41;
+            margin-bottom: 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px;
+            background: #000000;
+            border: 1px solid #003300;
+            border-radius: 2px;
+            color: #00ff41;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #00ff41;
+            box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin: 10px 0;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, #001100 0%, #002200 100%);
+            color: #00ff41;
+            padding: 8px;
+            border: 1px solid #003300;
+            text-align: left;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .table td {
+            padding: 6px 8px;
+            border: 1px solid #003300;
+            background: rgba(0, 20, 0, 0.3);
+            color: #66ff66;
+            vertical-align: top;
+        }
+
+        .table tr:hover td {
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .badge {
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #004400;
+            color: #00ff41;
+            border: 1px solid #00ff41;
+        }
+
+        .badge-warning {
+            background: #442200;
+            color: #ffaa00;
+            border: 1px solid #ffaa00;
+        }
+
+        .badge-danger {
+            background: #440000;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+        }
+
+        .alert {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 2px;
+            font-size: 11px;
+        }
+
+        .alert-success {
+            background: rgba(0, 68, 0, 0.3);
+            border: 1px solid #00ff41;
+            color: #00ff41;
+        }
+
+        .alert-error {
+            background: rgba(68, 0, 0, 0.3);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+
+        .loading {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .terminal {
+            background: #000000;
+            border: 1px solid #00ff41;
+            border-radius: 2px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: #00ff41;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .terminal::before {
+            content: '> SYSTEM LOG';
+            color: #66ff66;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .api-key-prompt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .api-key-modal {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border: 1px solid #00ff41;
+            border-radius: 4px;
+            padding: 20px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+        }
+
+        .flicker {
+            animation: flicker 2s infinite;
+        }
+
+        @keyframes flicker {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% {
+                text-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41;
+            }
+            20%, 24%, 55% {
+                text-shadow: none;
+            }
+        }
+
+        h2, h3, h4 {
+            color: #00ff41;
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px #00ff41;
+        }
+
+        h3 { font-size: 12px; }
+        h4 { font-size: 11px; }
+
+        code {
+            background: rgba(0, 255, 65, 0.1);
+            color: #00ff41;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+        }
+
+        pre {
+            background: #000000;
+            border: 1px solid #003300;
+            border-radius: 2px;
+            padding: 10px;
+            overflow-x: auto;
+            font-size: 10px;
+            color: #66ff66;
+        }
+
+        .download-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .cert-details {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px;
+            align-items: center;
+            font-size: 10px;
+        }
+
+        .cert-details dt {
+            color: #00ff41;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cert-details dd {
+            color: #66ff66;
+            margin: 0;
+            word-break: break-all;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav {
+                flex-direction: column;
+            }
+            
+            .download-links {
+                flex-direction: column;
+            }
         }
 
         .form-label {
@@ -345,57 +597,117 @@
             display: inline;
         }
 
-        .htmx-request .btn {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        pre {
-            background: #f6f6f6;
-            padding: 16px;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 16px 0;
-        }
-
-        code {
-            background: #f6f6f6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        }
-
-        .footer {
-            text-align: center;
-            color: #86868b;
-            font-size: 14px;
-            margin-top: 40px;
-        }
     </style>
 </head>
 
-<body>
+<body class="scanlines">
+    <!-- API Key Prompt Modal -->
+    {{if .RequireAPIKey}}
+    <div id="api-key-prompt" class="api-key-prompt">
+        <div class="api-key-modal">
+            <h3 class="flicker">AUTHORIZATION REQUIRED</h3>
+            <p style="margin-bottom: 15px; color: #66ff66; font-size: 11px;">
+                ENTER SECURITY CLEARANCE CODE TO ACCESS WEYLAND-YUTANI CA SYSTEM
+            </p>
+            <div class="form-group">
+                <label class="form-label">API KEY</label>
+                <input type="password" id="api-key-input" class="form-input" placeholder="Enter API key..." />
+            </div>
+            <button onclick="submitAPIKey()" class="btn btn-primary">AUTHENTICATE</button>
+        </div>
+    </div>
+    {{end}}
+
     <div class="container">
         <div class="header">
-            <h1>SharedGoLibs Certificate Authority</h1>
-            <p class="subtitle">Dynamic SSL certificate issuance for development services</p>
+            <h1 class="flicker">WEYLAND-YUTANI CA SYSTEM</h1>
+            <p class="subtitle">CERTIFICATE AUTHORITY // CLASSIFICATION: RESTRICTED</p>
             <nav class="nav">
-                <a href="/ui/" class="nav-link {{if eq .Page " dashboard"}}active{{end}}">🏠 Dashboard</a>
-                <a href="/ui/certs" class="nav-link {{if eq .Page " certs"}}active{{end}}">📋 Certificates</a>
-                <a href="/ui/generate" class="nav-link {{if eq .Page " generate"}}active{{end}}">🔐 Generate</a>
-                <a href="/ui/download-ca" class="nav-link">⬇️ Download CA</a>
+                <a href="/ui/" class="nav-link {{if eq .Page "dashboard"}}active{{end}}">MAIN</a>
+                <a href="/ui/certs" class="nav-link {{if eq .Page "certs"}}active{{end}}">CERTS</a>
+                <a href="/ui/generate" class="nav-link {{if eq .Page "generate"}}active{{end}}">ISSUE</a>
             </nav>
         </div>
 
         <div class="content">
             {{template "content" .}}
         </div>
-
-        <div class="footer">
-            SharedGoLibs CA v{{.Version}} |
-            <a href="https://github.com/nzions/sharedgolibs" style="color: #007aff;">GitHub</a>
-        </div>
     </div>
+
+    <script>
+        // Auto-refresh certificates every 30 seconds
+        if (window.location.pathname.includes('/ui/') && !window.location.pathname.includes('/generate')) {
+            setInterval(() => {
+                if (document.querySelector('[hx-get]')) {
+                    htmx.trigger(document.body, 'refresh');
+                }
+            }, 30000);
+        }
+
+        // API Key handling
+        function submitAPIKey() {
+            const apiKey = document.getElementById('api-key-input').value;
+            if (apiKey) {
+                // Set API key in session storage
+                sessionStorage.setItem('ca-api-key', apiKey);
+                // Add to all future requests
+                document.addEventListener('htmx:configRequest', function(evt) {
+                    evt.detail.headers['X-API-Key'] = apiKey;
+                });
+                // Hide prompt
+                document.getElementById('api-key-prompt').style.display = 'none';
+                // Reload page with API key
+                window.location.href = window.location.pathname + '?api_key=' + encodeURIComponent(apiKey);
+            }
+        }
+
+        // Check for stored API key
+        window.addEventListener('load', function() {
+            const storedKey = sessionStorage.getItem('ca-api-key');
+            if (storedKey && document.getElementById('api-key-prompt')) {
+                document.getElementById('api-key-input').value = storedKey;
+                submitAPIKey();
+            }
+        });
+
+        // Live log streaming
+        function connectLogStream() {
+            const logContainer = document.getElementById('log-stream');
+            if (!logContainer) return;
+
+            const eventSource = new EventSource('/ui/logs');
+            eventSource.onmessage = function(event) {
+                const logLine = document.createElement('div');
+                logLine.textContent = new Date().toISOString().substr(11, 8) + ' ' + event.data;
+                logContainer.appendChild(logLine);
+                
+                // Keep only last 50 log lines
+                while (logContainer.children.length > 50) {
+                    logContainer.removeChild(logContainer.firstChild);
+                }
+                
+                // Auto-scroll to bottom
+                logContainer.scrollTop = logContainer.scrollHeight;
+            };
+            
+            eventSource.onerror = function() {
+                setTimeout(connectLogStream, 5000); // Reconnect after 5 seconds
+            };
+        }
+
+        // Start log streaming
+        window.addEventListener('load', connectLogStream);
+
+        // Download handlers
+        function downloadFile(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
 </body>
 
 </html>

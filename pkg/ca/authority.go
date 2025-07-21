@@ -39,6 +39,7 @@ type IssuedCert struct {
 	IssuedAt     time.Time `json:"issued_at"`
 	ExpiresAt    time.Time `json:"expires_at"`
 	Certificate  string    `json:"certificate"`
+	PrivateKey   string    `json:"private_key,omitempty"` // Optional for security
 	SerialNumber string    `json:"serial_number"`
 }
 
@@ -209,6 +210,17 @@ func (ca *CA) CertificatePEM() []byte {
 	return pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: ca.cert.Raw,
+	})
+}
+
+// PrivateKeyPEM returns the CA private key in PEM format
+func (ca *CA) PrivateKeyPEM() []byte {
+	ca.mutex.RLock()
+	defer ca.mutex.RUnlock()
+	
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(ca.privateKey),
 	})
 }
 

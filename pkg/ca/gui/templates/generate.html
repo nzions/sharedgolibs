@@ -1,61 +1,65 @@
 {{define "content"}}
-<h2>Generate New Certificate</h2>
-<p style="color: #86868b; margin-bottom: 24px;">
-    Create a new SSL certificate for your service. The certificate will be valid for 30 days.
-</p>
+<div class="panel">
+    <h3>CERTIFICATE GENERATION</h3>
+    <p style="color: #66ff66; margin-bottom: 15px; font-size: 10px;">
+        GENERATE NEW SSL CERTIFICATE FOR SERVICE DEPLOYMENT // VALID FOR 30 DAYS
+    </p>
 
-<form hx-post="/ui/generate" hx-target="#result" hx-indicator="#loading">
-    <div class="form-group">
-        <label class="form-label" for="service_name">Service Name *</label>
-        <input type="text" id="service_name" name="service_name" class="form-input"
-            placeholder="e.g., web-service, api-backend" required />
-        <small style="color: #86868b;">A unique identifier for your service</small>
+    <form hx-post="/ui/generate" hx-target="#result" hx-indicator="#loading">
+        <div class="form-group">
+            <label class="form-label" for="service_name">SERVICE IDENTIFIER *</label>
+            <input type="text" id="service_name" name="service_name" class="form-input"
+                placeholder="web-service, api-backend, database-01" required />
+            <small style="color: #66ff66; font-size: 9px;">UNIQUE IDENTIFIER FOR SERVICE DEPLOYMENT</small>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="service_ip">NETWORK ADDRESS *</label>
+            <input type="text" id="service_ip" name="service_ip" class="form-input"
+                placeholder="192.168.1.100, 10.0.0.50, 172.16.0.25" required />
+            <small style="color: #66ff66; font-size: 9px;">IPV4 ADDRESS WHERE SERVICE WILL BE DEPLOYED</small>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="domains">SUBJECT ALTERNATIVE NAMES *</label>
+            <textarea id="domains" name="domains" class="form-input" rows="4"
+                placeholder="example.com&#10;api.example.com&#10;localhost&#10;*.local"
+                required></textarea>
+            <small style="color: #66ff66; font-size: 9px;">ONE DOMAIN PER LINE // INCLUDE LOCALHOST FOR LOCAL DEV</small>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">
+                GENERATE CERTIFICATE
+                <span id="loading" class="loading">...</span>
+            </button>
+            <a href="/ui/certs" class="btn">CANCEL</a>
+        </div>
+    </form>
+
+    <div id="result" style="margin-top: 15px;">
+        <!-- Results will be loaded here -->
     </div>
-
-    <div class="form-group">
-        <label class="form-label" for="service_ip">Service IP Address *</label>
-        <input type="text" id="service_ip" name="service_ip" class="form-input"
-            placeholder="e.g., 192.168.1.100, 10.0.0.50" required />
-        <small style="color: #86868b;">The IP address where your service will run</small>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label" for="domains">Domain Names *</label>
-        <textarea id="domains" name="domains" class="form-input" rows="4"
-            placeholder="Enter one domain per line:&#10;example.com&#10;api.example.com&#10;localhost"
-            required></textarea>
-        <small style="color: #86868b;">Enter one domain name per line. Include localhost for local development.</small>
-    </div>
-
-    <div class="form-group">
-        <button type="submit" class="btn btn-success">
-            🔐 Generate Certificate
-            <span id="loading" class="loading">...</span>
-        </button>
-        <a href="/ui/certs" class="btn">Cancel</a>
-    </div>
-</form>
-
-<div id="result" style="margin-top: 24px;">
-    <!-- Results will be loaded here -->
 </div>
 
-<div class="card" style="margin-top: 32px;">
-    <h3>💡 Tips</h3>
-    <ul style="margin-left: 20px; color: #86868b;">
-        <li>Use descriptive service names for easy identification</li>
-        <li>Include all domain names and IP addresses your service will use</li>
-        <li>Always include <code>localhost</code> for local development</li>
-        <li>Certificates are valid for 30 days - set up automatic renewal</li>
-        <li>Save both the certificate and private key files securely</li>
-    </ul>
+<div class="panel">
+    <h3>OPERATIONAL NOTES</h3>
+    <div style="font-size: 10px; color: #66ff66;">
+        <p>• USE DESCRIPTIVE SERVICE NAMES FOR ASSET TRACKING</p>
+        <p>• INCLUDE ALL DOMAIN NAMES AND IP ADDRESSES</p>
+        <p>• ALWAYS INCLUDE LOCALHOST FOR DEVELOPMENT ENVIRONMENT</p>
+        <p>• CERTIFICATES EXPIRE IN 30 DAYS - IMPLEMENT AUTO-RENEWAL</p>
+        <p>• PRIVATE KEYS ARE GENERATED AND STORED SECURELY</p>
+        <p>• ALL CERTIFICATE OPERATIONS ARE LOGGED AND MONITORED</p>
+    </div>
 </div>
 
-<div class="card">
-    <h3>📝 Example API Request</h3>
-    <p style="margin-bottom: 16px;">You can also generate certificates programmatically:</p>
-    <pre><code>curl -X POST http://localhost:8090/cert \
+<div class="panel">
+    <h3>API ENDPOINT</h3>
+    <p style="margin-bottom: 10px; font-size: 10px; color: #66ff66;">PROGRAMMATIC CERTIFICATE GENERATION:</p>
+    <pre><code>curl -X POST {{.BaseURL}}/cert \
   -H "Content-Type: application/json" \
+  {{if .RequireAPIKey}}-H "X-API-Key: YOUR_API_KEY" \{{end}}
   -d '{
     "service_name": "my-service",
     "service_ip": "192.168.1.10",

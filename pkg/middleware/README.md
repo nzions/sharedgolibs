@@ -4,7 +4,7 @@ HTTP middleware functions for Go web applications. This package provides common 
 
 ## Version
 
-Current version: `v0.2.0`
+Current version: `v0.3.0`
 
 ## Available Middleware
 

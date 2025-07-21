@@ -40,21 +40,28 @@ type DashboardData struct {
 	CAKeyAlgorithm       string
 	CASignatureAlgorithm string
 	RecentCerts          []CertificateViewModel
+	AllCerts             []CertificateViewModel
+	RequireAPIKey        bool
+	BaseURL              string
 }
 
 // CertificatesData holds data for the certificates template
 type CertificatesData struct {
-	Title        string
-	Page         string
-	Version      string
-	Certificates []CertificateViewModel
+	Title         string
+	Page          string
+	Version       string
+	Certificates  []CertificateViewModel
+	RequireAPIKey bool
+	BaseURL       string
 }
 
 // GenerateData holds data for the generate template
 type GenerateData struct {
-	Title   string
-	Page    string
-	Version string
+	Title         string
+	Page          string
+	Version       string
+	RequireAPIKey bool
+	BaseURL       string
 }
 
 // NewGUIHandler creates a new GUI handler
@@ -99,7 +106,8 @@ func (g *GUIHandler) RequireAPIKey(next http.HandlerFunc) http.HandlerFunc {
 // HandleDashboard renders the dashboard page
 func (g *GUIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	certs := g.ca.GetIssuedCertificates()
-	recentCerts := g.prepareCertificates(certs)
+	allCerts := g.prepareCertificates(certs)
+	recentCerts := allCerts
 
 	// Show only the 5 most recent certificates
 	if len(recentCerts) > 5 {
@@ -108,6 +116,13 @@ func (g *GUIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	caInfo := g.ca.GetCAInfo()
 	caCert := g.ca.Certificate()
+
+	// Determine base URL from request
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
 
 	data := DashboardData{
 		Title:                "Dashboard",
@@ -121,6 +136,9 @@ func (g *GUIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		CAKeyAlgorithm:       caCert.PublicKeyAlgorithm.String(),
 		CASignatureAlgorithm: caCert.SignatureAlgorithm.String(),
 		RecentCerts:          recentCerts,
+		AllCerts:             allCerts,
+		RequireAPIKey:        g.apiKey != "",
+		BaseURL:              baseURL,
 	}
 
 	// Add additional CA info from the CA's GetCAInfo method
@@ -144,11 +162,20 @@ func (g *GUIHandler) HandleCertificates(w http.ResponseWriter, r *http.Request) 
 	certs := g.ca.GetIssuedCertificates()
 	certificates := g.prepareCertificates(certs)
 
+	// Determine base URL from request
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
 	data := CertificatesData{
-		Title:        "Certificates",
-		Page:         "certs",
-		Version:      Version,
-		Certificates: certificates,
+		Title:         "Certificates",
+		Page:          "certs",
+		Version:       Version,
+		Certificates:  certificates,
+		RequireAPIKey: g.apiKey != "",
+		BaseURL:       baseURL,
 	}
 
 	if err := g.templates.ExecuteTemplate(w, "base.html", data); err != nil {
@@ -160,10 +187,19 @@ func (g *GUIHandler) HandleCertificates(w http.ResponseWriter, r *http.Request) 
 // HandleGenerate renders the generate certificate page or processes the form
 func (g *GUIHandler) HandleGenerate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
+		// Determine base URL from request
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
 		data := GenerateData{
-			Title:   "Generate Certificate",
-			Page:    "generate",
-			Version: Version,
+			Title:         "Generate Certificate",
+			Page:          "generate",
+			Version:       Version,
+			RequireAPIKey: g.apiKey != "",
+			BaseURL:       baseURL,
 		}
 
 		if err := g.templates.ExecuteTemplate(w, "base.html", data); err != nil {
@@ -722,4 +758,208 @@ func (g *GUIHandler) HandleDownloadCA(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-pem-file")
 	w.Header().Set("Content-Disposition", "attachment; filename=sharedgolibs-ca.crt")
 	w.Write(caCertPEM)
+}
+
+// HandleDownloadCAKey handles CA private key download requests
+func (g *GUIHandler) HandleDownloadCAKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	caKeyPEM := g.ca.PrivateKeyPEM()
+
+	w.Header().Set("Content-Type", "application/x-pem-file")
+	w.Header().Set("Content-Disposition", "attachment; filename=sharedgolibs-ca.key")
+	w.Write(caKeyPEM)
+}
+
+// HandleDownloadCert handles individual certificate download requests
+func (g *GUIHandler) HandleDownloadCert(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract serial number from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/cert/")
+	serialNumber := strings.Split(path, "/")[0]
+
+	if serialNumber == "" {
+		http.Error(w, "Serial number required", http.StatusBadRequest)
+		return
+	}
+
+	certs := g.ca.GetIssuedCertificates()
+	var foundCert *IssuedCert
+	for _, cert := range certs {
+		if cert.SerialNumber == serialNumber {
+			foundCert = cert
+			break
+		}
+	}
+
+	if foundCert == nil {
+		http.Error(w, "Certificate not found", http.StatusNotFound)
+		return
+	}
+
+	filename := fmt.Sprintf("%s.crt", foundCert.ServiceName)
+	w.Header().Set("Content-Type", "application/x-pem-file")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Write([]byte(foundCert.Certificate))
+}
+
+// HandleDownloadCertKey handles individual certificate private key download requests
+func (g *GUIHandler) HandleDownloadCertKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract serial number from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/cert/")
+	serialNumber := strings.Split(path, "/")[0]
+
+	if serialNumber == "" {
+		http.Error(w, "Serial number required", http.StatusBadRequest)
+		return
+	}
+
+	certs := g.ca.GetIssuedCertificates()
+	var foundCert *IssuedCert
+	for _, cert := range certs {
+		if cert.SerialNumber == serialNumber {
+			foundCert = cert
+			break
+		}
+	}
+
+	if foundCert == nil {
+		http.Error(w, "Certificate not found", http.StatusNotFound)
+		return
+	}
+
+	filename := fmt.Sprintf("%s.key", foundCert.ServiceName)
+	w.Header().Set("Content-Type", "application/x-pem-file")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Write([]byte(foundCert.PrivateKey))
+}
+
+// HandleCertsTable handles HTMX requests for the certificates table
+func (g *GUIHandler) HandleCertsTable(w http.ResponseWriter, r *http.Request) {
+	certs := g.ca.GetIssuedCertificates()
+	certificates := g.prepareCertificates(certs)
+
+	// Generate table HTML
+	html := `<table class="table" hx-get="/ui/certs-table" hx-trigger="every 30s" hx-swap="outerHTML">
+		<thead>
+			<tr>
+				<th>SERVICE</th>
+				<th>COMMON NAME</th>
+				<th>SUBJECT ALT NAMES</th>
+				<th>SERIAL</th>
+				<th>ISSUED</th>
+				<th>EXPIRES</th>
+				<th>STATUS</th>
+				<th>ACTIONS</th>
+			</tr>
+		</thead>
+		<tbody>`
+
+	for _, cert := range certificates {
+		statusClass := "badge-success"
+		statusText := "VALID"
+		if cert.IsExpired {
+			statusClass = "badge-danger"
+			statusText = "EXPIRED"
+		} else if cert.IsExpiringSoon {
+			statusClass = "badge-warning"
+			statusText = "EXPIRING"
+		}
+
+		domainsHTML := ""
+		if len(cert.Domains) > 1 {
+			domainsHTML = fmt.Sprintf(`<details><summary>%d domains</summary>`, len(cert.Domains))
+			for _, domain := range cert.Domains {
+				domainsHTML += fmt.Sprintf(`<div><code>%s</code></div>`, domain)
+			}
+			domainsHTML += `</details>`
+		} else if len(cert.Domains) > 0 {
+			domainsHTML = fmt.Sprintf(`<code>%s</code>`, cert.Domains[0])
+		}
+
+		html += fmt.Sprintf(`
+			<tr>
+				<td><strong>%s</strong></td>
+				<td><code>%s</code></td>
+				<td>%s</td>
+				<td><code>%s</code></td>
+				<td>%s</td>
+				<td>%s</td>
+				<td><span class="badge %s">%s</span></td>
+				<td>
+					<div class="download-links">
+						<a href="/cert/%s" class="btn" onclick="downloadFile('/cert/%s', '%s.crt')" title="Download certificate">CERT</a>
+						<a href="/cert/%s/key" class="btn btn-danger" onclick="downloadFile('/cert/%s/key', '%s.key')" title="Download private key">KEY</a>
+					</div>
+				</td>
+			</tr>`,
+			cert.ServiceName,
+			cert.Domains[0],
+			domainsHTML,
+			cert.SerialNumber,
+			cert.IssuedAt.Format("01-02 15:04"),
+			cert.ExpiresAt.Format("01-02 15:04"),
+			statusClass, statusText,
+			cert.SerialNumber, cert.SerialNumber, cert.ServiceName,
+			cert.SerialNumber, cert.SerialNumber, cert.ServiceName,
+		)
+	}
+
+	html += `</tbody></table>`
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(html))
+}
+
+// HandleLogStream handles Server-Sent Events for live log streaming
+func (g *GUIHandler) HandleLogStream(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Send initial message
+	fmt.Fprintf(w, "data: CA System initialized\n\n")
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	// Create a channel to receive log messages
+	logChan := make(chan string, 100)
+
+	// TODO: Connect to actual log stream from CA
+	// For now, send periodic status updates
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			certs := g.ca.GetIssuedCertificates()
+			message := fmt.Sprintf("System status: %d certificates active", len(certs))
+			fmt.Fprintf(w, "data: %s\n\n", message)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		case <-r.Context().Done():
+			return
+		case msg := <-logChan:
+			fmt.Fprintf(w, "data: %s\n\n", msg)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		}
+	}
 }

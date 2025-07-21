@@ -1,71 +1,80 @@
 {{define "content"}}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-    <h2>Issued Certificates</h2>
-    <a href="/ui/generate" class="btn btn-success">🔐 Generate New Certificate</a>
-</div>
-
-{{if .Certificates}}
-<div style="margin-bottom: 16px;">
-    <strong>{{len .Certificates}}</strong> certificate{{if ne (len .Certificates) 1}}s{{end}} issued
-</div>
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>Service Name</th>
-            <th>Domains</th>
-            <th>Serial Number</th>
-            <th>Issued</th>
-            <th>Expires</th>
-            <th>Status</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{range .Certificates}}
-        <tr>
-            <td><strong>{{.ServiceName}}</strong></td>
-            <td>
-                <div style="max-width: 300px; overflow: hidden;">
-                    {{range $index, $domain := .Domains}}
-                    {{if $index}}<br />{{end}}
-                    <code style="font-size: 12px;">{{$domain}}</code>
-                    {{end}}
-                </div>
-            </td>
-            <td><code style="font-size: 12px;">{{.SerialNumber}}</code></td>
-            <td>{{.IssuedAt.Format "2006-01-02 15:04"}}</td>
-            <td>{{.ExpiresAt.Format "2006-01-02 15:04"}}</td>
-            <td>
-                {{if .IsExpired}}
-                <span class="badge badge-danger">Expired</span>
-                {{else if .IsExpiringSoon}}
-                <span class="badge badge-warning">Expiring Soon</span>
-                {{else}}
-                <span class="badge badge-success">Valid</span>
-                {{end}}
-            </td>
-            <td>
-                <button class="btn" style="padding: 6px 12px; font-size: 12px;"
-                    hx-get="/ui/cert-details/{{.SerialNumber}}" hx-target="#cert-modal-content" hx-trigger="click"
-                    onclick="document.getElementById('cert-modal').style.display='block'">
-                    View Details
-                </button>
-            </td>
-        </tr>
-        {{end}}
-    </tbody>
-</table>
-{{else}}
-<div class="card">
-    <div style="text-align: center; padding: 40px; color: #86868b;">
-        <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
-        <h3>No Certificates Issued Yet</h3>
-        <p style="margin: 16px 0;">Generate your first certificate to get started with the CA.</p>
-        <a href="/ui/generate" class="btn btn-success">Generate Certificate</a>
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3>CERTIFICATE REGISTRY</h3>
+        <a href="/ui/generate" class="btn btn-primary">ISSUE NEW CERTIFICATE</a>
     </div>
+
+    {{if .Certificates}}
+    <div style="margin-bottom: 10px; font-size: 10px; color: #66ff66;">
+        <strong>{{len .Certificates}}</strong> CERTIFICATE{{if ne (len .Certificates) 1}}S{{end}} IN SYSTEM
+    </div>
+
+    <table class="table" hx-get="/ui/certs-table" hx-trigger="load, every 30s" hx-swap="outerHTML">
+        <thead>
+            <tr>
+                <th>SERVICE</th>
+                <th>CN</th>
+                <th>SUBJECT ALT NAMES</th>
+                <th>SERIAL</th>
+                <th>ISSUED</th>
+                <th>EXPIRES</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Certificates}}
+            <tr>
+                <td><strong>{{.ServiceName}}</strong></td>
+                <td><code>{{index .Domains 0}}</code></td>
+                <td>
+                    {{if gt (len .Domains) 1}}
+                    <details>
+                        <summary>{{len .Domains}} domains</summary>
+                        {{range .Domains}}
+                        <div><code>{{.}}</code></div>
+                        {{end}}
+                    </details>
+                    {{else}}
+                    <code>{{index .Domains 0}}</code>
+                    {{end}}
+                </td>
+                <td><code>{{.SerialNumber}}</code></td>
+                <td>{{.IssuedAt.Format "01-02 15:04"}}</td>
+                <td>{{.ExpiresAt.Format "01-02 15:04"}}</td>
+                <td>
+                    {{if .IsExpired}}
+                    <span class="badge badge-danger">EXPIRED</span>
+                    {{else if .IsExpiringSoon}}
+                    <span class="badge badge-warning">EXPIRING</span>
+                    {{else}}
+                    <span class="badge badge-success">VALID</span>
+                    {{end}}
+                </td>
+                <td>
+                    <div class="download-links">
+                        <a href="/cert/{{.SerialNumber}}" class="btn" 
+                           onclick="downloadFile('/cert/{{.SerialNumber}}', '{{.ServiceName}}.crt')" 
+                           title="Download certificate">CERT</a>
+                        <a href="/cert/{{.SerialNumber}}/key" class="btn btn-danger" 
+                           onclick="downloadFile('/cert/{{.SerialNumber}}/key', '{{.ServiceName}}.key')" 
+                           title="Download private key">KEY</a>
+                    </div>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <div class="panel" style="text-align: center; padding: 30px;">
+        <div style="font-size: 24px; margin-bottom: 10px; color: #00ff41;">⚠️</div>
+        <h4>NO CERTIFICATES IN REGISTRY</h4>
+        <p style="margin: 10px 0; color: #66ff66; font-size: 10px;">GENERATE FIRST CERTIFICATE TO INITIALIZE SYSTEM</p>
+        <a href="/ui/generate" class="btn btn-primary">ISSUE CERTIFICATE</a>
+    </div>
+    {{end}}
 </div>
-{{end}}
 
 <!-- Certificate Details Modal -->
 <div id="cert-modal" style="
@@ -76,41 +85,33 @@
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0,0,0,0.8);
 ">
     <div style="
-        background-color: white;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
         margin: 5% auto;
         padding: 0;
-        border-radius: 12px;
+        border: 1px solid #00ff41;
+        border-radius: 2px;
         width: 80%;
         max-width: 800px;
         max-height: 80vh;
         overflow-y: auto;
     ">
-        <div
-            style="padding: 24px; border-bottom: 1px solid #d2d2d7; display: flex; justify-content: space-between; align-items: center;">
-            <h3>Certificate Details</h3>
+        <div style="padding: 15px; border-bottom: 1px solid #003300; display: flex; justify-content: space-between; align-items: center;">
+            <h3>CERTIFICATE DETAILS</h3>
             <button onclick="document.getElementById('cert-modal').style.display='none'" style="
                 background: none;
                 border: none;
-                font-size: 24px;
+                font-size: 18px;
                 cursor: pointer;
-                color: #86868b;
-            ">&times;</button>
+                color: #00ff41;
+                font-family: 'IBM Plex Mono', monospace;
+            ">[X]</button>
         </div>
-        <div id="cert-modal-content" style="padding: 24px;">
+        <div id="cert-modal-content" style="padding: 15px;">
             <!-- Content loaded via HTMX -->
         </div>
     </div>
 </div>
-
-<script>
-    // Close modal when clicking outside
-    document.getElementById('cert-modal').addEventListener('click', function (e) {
-        if (e.target === this) {
-            this.style.display = 'none';
-        }
-    });
-</script>
 {{end}}

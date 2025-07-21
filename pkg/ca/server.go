@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/nzions/sharedgolibs/pkg/middleware"
 )
@@ -99,12 +100,17 @@ func (s *Server) Start() error {
 	// Web UI handlers (only if GUI is enabled)
 	if s.enableGUI && s.gui != nil {
 		// Apply API key middleware if configured
-		var dashboardHandler, certsHandler, generateHandler, certDetailsHandler, downloadCAHandler http.Handler
+		var dashboardHandler, certsHandler, generateHandler, certDetailsHandler, downloadCAHandler, downloadCAKeyHandler, downloadCertHandler, downloadCertKeyHandler, certsTableHandler, logStreamHandler http.Handler
 		dashboardHandler = http.HandlerFunc(s.gui.HandleDashboard)
 		certsHandler = http.HandlerFunc(s.gui.HandleCertificates)
 		generateHandler = http.HandlerFunc(s.gui.HandleGenerate)
 		certDetailsHandler = http.HandlerFunc(s.gui.HandleCertDetails)
 		downloadCAHandler = http.HandlerFunc(s.gui.HandleDownloadCA)
+		downloadCAKeyHandler = http.HandlerFunc(s.gui.HandleDownloadCAKey)
+		downloadCertHandler = http.HandlerFunc(s.gui.HandleDownloadCert)
+		downloadCertKeyHandler = http.HandlerFunc(s.gui.HandleDownloadCertKey)
+		certsTableHandler = http.HandlerFunc(s.gui.HandleCertsTable)
+		logStreamHandler = http.HandlerFunc(s.gui.HandleLogStream)
 
 		if s.guiAPIKey != "" {
 			dashboardHandler = middleware.WithAPIKey(s.guiAPIKey, dashboardHandler)
@@ -112,6 +118,11 @@ func (s *Server) Start() error {
 			generateHandler = middleware.WithAPIKey(s.guiAPIKey, generateHandler)
 			certDetailsHandler = middleware.WithAPIKey(s.guiAPIKey, certDetailsHandler)
 			downloadCAHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAHandler)
+			downloadCAKeyHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAKeyHandler)
+			downloadCertHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCertHandler)
+			downloadCertKeyHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCertKeyHandler)
+			certsTableHandler = middleware.WithAPIKey(s.guiAPIKey, certsTableHandler)
+			logStreamHandler = middleware.WithAPIKey(s.guiAPIKey, logStreamHandler)
 		}
 
 		http.Handle("/", dashboardHandler)
@@ -120,6 +131,31 @@ func (s *Server) Start() error {
 		http.Handle("/ui/generate", generateHandler)
 		http.Handle("/ui/cert-details/", certDetailsHandler)
 		http.Handle("/ui/download-ca", downloadCAHandler)
+		http.Handle("/ca-key", downloadCAKeyHandler)
+		http.Handle("/ui/certs-table", certsTableHandler)
+		http.Handle("/ui/logs", logStreamHandler)
+		
+		// Certificate download routes - these need special handling
+		http.HandleFunc("/cert/", func(w http.ResponseWriter, r *http.Request) {
+			if s.guiAPIKey != "" {
+				// Check API key
+				apiKey := r.Header.Get("X-API-Key")
+				if apiKey == "" {
+					apiKey = r.URL.Query().Get("api_key")
+				}
+				if apiKey != s.guiAPIKey {
+					http.Error(w, "Unauthorized: Invalid or missing API key", http.StatusUnauthorized)
+					return
+				}
+			}
+			
+			// Check if it's a key request
+			if strings.HasSuffix(r.URL.Path, "/key") {
+				s.gui.HandleDownloadCertKey(w, r)
+			} else {
+				s.gui.HandleDownloadCert(w, r)
+			}
+		})
 	}
 
 	log.Printf("[ca] Certificate Authority listening on port %s", s.port)

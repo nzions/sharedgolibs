@@ -2,29 +2,45 @@
 
 [![License: CC0-1.0](https://img.shields.io/badge/License-CC0--1.0-blue.svg)](http://creativecommons.org/publicdomain/zero/1.0/)
 
-The CA package provides comprehensive Certificate Authority functionality for development and testing environments, enabling dynamic certificate issuance and HTTP transport monkey-patching.
+The CA package provides comprehensive Certificate Authority functionality for development and testing environments, enabling dynamic certificate issuance, persistent storage, thread-safe operations, gRPC support, and HTTP transport integration.
 
-## Version: 1.0.0
+## Version: v1.1.0
 
 ## Features
 
-### Certificate Authority (authority.go)
-- 🔐 **Complete CA Implementation**: Full Certificate Authority with RSA key generation and X.509 certificate creation
-- 🏭 **Dynamic Certificate Generation**: Create certificates for any service or domain on-demand
-- 🌐 **Web UI**: User-friendly interface for certificate management
-- 📡 **REST API**: Programmatic certificate issuance
-- 📋 **Certificate Store**: Track all issued certificates with thread-safe operations
-- 🔄 **Concurrent Safe**: Thread-safe operations for multi-service environments
+### 🔐 Certificate Authority (authority.go)
+- **Complete CA Implementation**: Full Certificate Authority with RSA key generation and X.509 certificate creation
+- **Dynamic Certificate Generation**: Create certificates for any service or domain on-demand
+- **Persistent Storage**: RAM and disk-based storage with automatic loading
+- **Thread-Safe Operations**: Concurrent certificate generation with proper locking
+- **Certificate Management**: Track all issued certificates with serial number lookup
 
-### HTTP Transport Monkey-Patching (monkeypatch.go)
-- 🔧 **Zero-code-change**: Modify global HTTP transport without changing application code
-- 🛡️ **CA Trust**: Automatically trust certificates signed by custom CA
-- 🔄 **Reversible**: Restore original transport when emulation is complete
-- ⚙️ **Environment-driven**: Configuration through environment variables
+### 🌐 Web Interface & API (server.go, gui.go)
+- **Web UI**: User-friendly interface for certificate management and generation
+- **REST API**: Programmatic certificate issuance with JSON responses
+- **API Key Authentication**: Secure access control with optional API keys
+- **Health Monitoring**: Built-in health check endpoints
+
+### 🚀 gRPC Support (transport.go)
+- **Secure gRPC Servers**: `CreateSecureGRPCServer()` with automatic certificate provisioning
+- **gRPC Credentials**: `CreateGRPCCredentials()` for client connections
+- **Dial Options**: `UpdateGRPCDialOptions()` for zero-configuration gRPC clients
+
+### 🔧 HTTP Transport Integration (transport.go)
+- **Zero-code-change**: Modify global HTTP transport without changing application code  
+- **Automatic CA Trust**: Configure HTTP clients to trust CA-issued certificates
+- **Environment-driven**: Configuration through `SGL_CA` and `SGL_CA_API_KEY` variables
+- **HTTPS Server Creation**: `CreateSecureHTTPSServer()` with automatic certificates
+
+### 💾 Storage Architecture (storage.go)
+- **Storage Abstraction**: Pluggable storage backends via `CertStorage` interface
+- **RAM Storage**: High-performance in-memory certificate storage
+- **Disk Storage**: Persistent JSON-based certificate storage with atomic operations
+- **Automatic Loading**: Certificates and CA state restored on startup
 
 ## Quick Start
 
-### Basic CA Usage
+### Basic CA Usage with Persistence
 
 ```go
 package main
@@ -35,28 +51,34 @@ import (
 )
 
 func main() {
-    // Create a new Certificate Authority
-    certificateAuthority, err := ca.NewCA(nil) // Uses default config
+    // Create CA with disk persistence
+    config := ca.DefaultCAConfig()
+    config.PersistDir = "./ca-data" // Certificates will persist across restarts
+    
+    certificateAuthority, err := ca.NewCA(config)
     if err != nil {
         log.Fatal(err)
     }
 
-    // Generate a certificate for a service
-    certPEM, keyPEM, err := certificateAuthority.GenerateCertificate(
-        "my-service",
-        "192.168.1.100", 
-        []string{"api.example.com", "service.local"},
-    )
+    // Issue a certificate using the new API
+    req := ca.CertRequest{
+        ServiceName: "my-service",
+        ServiceIP:   "192.168.1.100",
+        Domains:     []string{"api.example.com", "service.local"},
+    }
+    
+    resp, err := certificateAuthority.IssueServiceCertificate(req)
     if err != nil {
         log.Fatal(err)
     }
 
-    log.Printf("Certificate: %s", certPEM)
-    log.Printf("Private Key: %s", keyPEM)
+    log.Printf("Certificate: %s", resp.Certificate)
+    log.Printf("Private Key: %s", resp.PrivateKey)
+    log.Printf("CA Certificate: %s", resp.CACert)
 }
 ```
 
-### HTTP Server Usage
+### HTTP Server with API Key Authentication
 
 ```go
 package main
@@ -67,20 +89,28 @@ import (
 )
 
 func main() {
-    // Create and start CA server
-    server, err := ca.NewServer(nil) // Uses default config
+    // Create CA server with API key protection
+    config := &ca.ServerConfig{
+        Port:      "8090",
+        CAConfig:  ca.DefaultCAConfig(),
+        EnableGUI: true,
+        GUIAPIKey: "my-secure-api-key", // Protect with API key
+    }
+    
+    server, err := ca.NewServer(config)
     if err != nil {
         log.Fatal(err)
     }
 
     log.Println("Starting CA server on port 8090...")
+    log.Println("Access with: http://localhost:8090?api_key=my-secure-api-key")
     if err := server.Start(); err != nil {
         log.Fatal(err)
     }
 }
 ```
 
-### HTTP Transport Monkey-Patching
+### Environment-based Transport Setup
 
 ```go
 package main
@@ -88,112 +118,265 @@ package main
 import (
     "log"
     "os"
+    "net/http"
     "github.com/nzions/sharedgolibs/pkg/ca"
 )
 
 func main() {
-    // Setup HTTP transport to trust custom CA
-    cleanup, err := ca.SetupFromCAFile("/path/to/ca.crt")
+    // Set environment variables
+    os.Setenv("SGL_CA", "http://localhost:8090")
+    os.Setenv("SGL_CA_API_KEY", "my-secure-api-key")
+    
+    // Update HTTP transport to trust CA certificates
+    err := ca.UpdateTransport()
     if err != nil {
         log.Fatal(err)
     }
-    defer cleanup()
 
-    // Now all HTTP clients will trust the custom CA
-    // Your existing HTTP code works unchanged
+    // Now all HTTP clients will trust CA-issued certificates
+    client := &http.Client{}
+    resp, err := client.Get("https://my-service.local")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer resp.Body.Close()
+    
+    log.Printf("Response status: %s", resp.Status)
+}
+```
+
+### Create Secure HTTPS Server
+
+```go
+package main
+
+import (
+    "log"
+    "net/http"
+    "os"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    // Set CA service URL
+    os.Setenv("SGL_CA", "http://localhost:8090")
+    os.Setenv("SGL_CA_API_KEY", "my-secure-api-key")
+    
+    // Create handler
+    mux := http.NewServeMux()
+    mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        w.Write([]byte("Hello from secure server!"))
+    })
+    
+    // Create HTTPS server with automatic certificates
+    server, err := ca.CreateSecureHTTPSServer(
+        "my-web-service",      // Service name
+        "127.0.0.1",          // Service IP
+        "8443",               // Port
+        []string{"localhost", "my-service.local"}, // Domains
+        mux,                  // Handler
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Println("Starting secure HTTPS server on :8443")
+    log.Fatal(server.ListenAndServeTLS("", ""))
+}
+```
+
+### Create Secure gRPC Server
+
+```go
+package main
+
+import (
+    "log"
+    "net"
+    "os"
+    "google.golang.org/grpc"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    // Set CA service URL  
+    os.Setenv("SGL_CA", "http://localhost:8090")
+    os.Setenv("SGL_CA_API_KEY", "my-secure-api-key")
+    
+    // Create secure gRPC server with automatic certificates
+    server, err := ca.CreateSecureGRPCServer(
+        "my-grpc-service",    // Service name
+        "127.0.0.1",         // Service IP
+        []string{"localhost", "grpc.local"}, // Domains
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Register your gRPC services here
+    // pb.RegisterMyServiceServer(server, &myServiceImpl{})
+
+    lis, err := net.Listen("tcp", ":50051")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Println("Starting secure gRPC server on :50051")
+    log.Fatal(server.Serve(lis))
 }
 ```
 
 ## API Reference
+
+### Core Types
+
+#### CAConfig
+Configuration for Certificate Authority:
+```go
+type CAConfig struct {
+    CertValidDays    int              // Certificate validity period in days (default: 365)
+    KeySize         int              // RSA key size in bits (default: 2048)
+    Organization    string           // Certificate organization (default: "Default Org")
+    Country         string           // Certificate country (default: "US")
+    PersistDir      string           // Directory for persistent storage (optional)
+    StorageBackend  StorageBackend   // Custom storage backend (optional)
+}
+```
+
+#### ServerConfig  
+Configuration for HTTP server:
+```go
+type ServerConfig struct {
+    Port      string     // Server port (default: "8090")
+    CAConfig  *CAConfig  // CA configuration
+    EnableGUI bool       // Enable web GUI (default: true)
+    GUIAPIKey string     // API key for GUI protection (optional)
+}
+```
+
+#### CertRequest
+Request for certificate issuance:
+```go
+type CertRequest struct {
+    ServiceName string   `json:"service_name"` // Service identifier
+    ServiceIP   string   `json:"service_ip"`   // Service IP address
+    Domains     []string `json:"domains"`      // Domain names for certificate
+}
+```
+
+#### CertResponse
+Response from certificate issuance:
+```go
+type CertResponse struct {
+    Certificate string `json:"certificate"` // PEM-encoded certificate
+    PrivateKey  string `json:"private_key"` // PEM-encoded private key
+    CACert      string `json:"ca_cert"`     // PEM-encoded CA certificate
+}
+```
 
 ### Certificate Authority
 
 #### CA Struct
 The main Certificate Authority structure for issuing certificates.
 
-**Methods:**
-- `NewCA(config *CAConfig) (*CA, error)` - Create new CA
-- `Certificate() *x509.Certificate` - Get CA certificate
-- `CertificatePEM() []byte` - Get CA certificate in PEM format
-- `GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error)` - Generate service certificate
+**Constructor:**
+- `NewCA(config *CAConfig) (*CA, error)` - Create new CA with optional persistence
+
+**Certificate Methods:**
 - `IssueServiceCertificate(req CertRequest) (*CertResponse, error)` - Issue certificate from request
-- `GetIssuedCertificates() []*IssuedCert` - Get all issued certificates
+- `GetCACertificate() (string, error)` - Get CA certificate in PEM format
+- `ListCertificates() ([]CertificateInfo, error)` - List all issued certificates
+- `GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error)` - Legacy method
+
+**Information Methods:**
+- `GetIssuedCertificates() []*IssuedCert` - Get all issued certificates (legacy)
 - `GetCertificateBySerial(serial string) (*IssuedCert, bool)` - Get certificate by serial number
 - `GetCertificateCount() int` - Get count of issued certificates
 - `GetCAInfo() map[string]interface{}` - Get CA information
 
+### Server Functions
+
 #### Server Struct
 HTTP server wrapper for CA with web UI and REST API.
 
-**Methods:**
-- `NewServer(config *ServerConfig) (*Server, error)` - Create new server
-- `Start() error` - Start HTTP server
+**Constructor:**
+- `NewServer(config *ServerConfig) (*Server, error)` - Create new server with optional API key protection
+
+**Server Methods:**
+- `Start() error` - Start HTTP server (blocking)
+- `Stop() error` - Stop HTTP server gracefully
 - `GetCA() *CA` - Get underlying CA instance
 
-### Configuration Types
+### Transport Integration
 
+#### UpdateTransport
+Update default HTTP transport to trust CA certificates:
 ```go
-type CAConfig struct {
-    Country            []string
-    Province           []string
-    Locality           []string
-    Organization       []string
-    OrganizationalUnit []string
-    CommonName         string
-    ValidityPeriod     time.Duration
-    KeySize            int
-}
-
-type ServerConfig struct {
-    Port     string
-    CAConfig *CAConfig
-}
+func UpdateTransport() error
 ```
+Uses environment variables: `SGL_CA`, `SGL_CA_API_KEY`, `SGL_CA_CERT_PATH`
 
-### Request/Response Types
-
+#### SetupFromCAFile
+Setup HTTP transport from CA file:
 ```go
-type CertRequest struct {
-    ServiceName string   `json:"service_name"`
-    ServiceIP   string   `json:"service_ip"`
-    Domains     []string `json:"domains"`
-}
-
-type CertResponse struct {
-    Certificate string `json:"certificate"`
-    PrivateKey  string `json:"private_key"`
-    CACert      string `json:"ca_cert"`
-}
-
-type IssuedCert struct {
-    ServiceName  string    `json:"service_name"`
-    Domains      []string  `json:"domains"`
-    IssuedAt     time.Time `json:"issued_at"`
-    ExpiresAt    time.Time `json:"expires_at"`
-    Certificate  string    `json:"certificate"`
-    SerialNumber string    `json:"serial_number"`
-}
+func SetupFromCAFile(caFilePath string) (func(), error)
 ```
+Returns cleanup function to restore original transport.
 
-## HTTP Transport Monkey-Patching
-
-### Functions
-
-- `SetupFromCAFile(caCertPath string) (func(), error)` - Setup from CA file
+#### Legacy Transport Functions
 - `SetupFromCAService(caServiceURL string) (func(), error)` - Setup from CA service
 - `SetupFromCABytes(caCertificate []byte) (func(), error)` - Setup from CA bytes
 - `SetupWithDefaults() (func(), error)` - Setup with environment defaults
 
+### gRPC and HTTPS Integration
+
+#### CreateSecureGRPCServer
+Create a gRPC server with automatic certificates:
+```go
+func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string) (*grpc.Server, error)
+```
+
+#### CreateSecureHTTPSServer
+Create an HTTPS server with automatic certificates:
+```go
+func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*http.Server, error)
+```
+
+### Storage Backends
+
+#### StorageBackend Interface
+Pluggable storage interface for certificate persistence:
+```go
+type StorageBackend interface {
+    SaveCertificate(serviceName string, cert, key string) error
+    LoadCertificate(serviceName string) (cert, key string, err error)
+    SaveCA(cert, key string) error
+    LoadCA() (cert, key string, err error)
+    ListCertificates() ([]string, error)
+    DeleteCertificate(serviceName string) error
+}
+```
+
+### Utility Functions
+
+#### DefaultCAConfig
+Get default CA configuration:
+```go
+func DefaultCAConfig() *CAConfig
+```
+
 ### Environment Variables
 
-- `CA_SERVICE` - URL of the CA service (e.g., "ca:8090")
-- `CA_CERT_PATH` - Path to CA certificate file
+The package recognizes these environment variables:
 
-### Default CA Certificate Paths
+- `SGL_CA`: CA service URL (e.g., "http://localhost:8090")
+- `SGL_CA_API_KEY`: API key for CA service authentication
+- `SGL_CA_CERT_PATH`: Path to CA certificate file
+- `SGL_CA_INSECURE`: Set to "true" to disable TLS verification (for development)
 
-- `/tmp/sharedgolibs-ca/ca.crt`
-- `/etc/ssl/certs/sharedgolibs-ca.crt`
-- `./ca.crt`
+### Legacy Environment Variables
+- `CA_SERVICE`: Legacy CA service URL
+- `CA_CERT_PATH`: Legacy CA certificate path
 
 ## HTTP API Endpoints
 
@@ -202,14 +385,23 @@ When running the CA server, the following endpoints are available:
 ### GET /ca
 Download the CA certificate in PEM format.
 
+**Headers:**
+- `X-API-Key`: API key (if configured)
+
+**Response:** PEM-encoded CA certificate
+
 ### POST /cert
 Request a new service certificate.
+
+**Headers:**
+- `Content-Type: application/json`
+- `X-API-Key`: API key (if configured)
 
 **Request Body:**
 ```json
 {
     "service_name": "my-service",
-    "service_ip": "192.168.1.100",
+    "service_ip": "192.168.1.100", 
     "domains": ["api.example.com", "service.local"]
 }
 ```
@@ -223,8 +415,53 @@ Request a new service certificate.
 }
 ```
 
+### GET /certs
+List all issued certificates.
+
+**Headers:**
+- `X-API-Key`: API key (if configured)
+
+**Response:**
+```json
+{
+    "certificates": [
+        {
+            "service_name": "my-service",
+            "domains": ["api.example.com"],
+            "issued_at": "2024-01-01T00:00:00Z",
+            "expires_at": "2025-01-01T00:00:00Z",
+            "serial_number": "123456789"
+        }
+    ]
+}
+```
+
 ### GET /health
 Health check endpoint.
+
+**Response:**
+```json
+{
+    "status": "healthy",
+    "ca_info": {
+        "issued_certificates": 5,
+        "ca_subject": "CN=Certificate Authority"
+    }
+}
+```
+
+### Web GUI
+When `EnableGUI` is true, a web interface is available at the root path (`/`).
+
+**Access:** 
+- Without API key: `http://localhost:8090/`
+- With API key: `http://localhost:8090/?api_key=your-api-key`
+
+**Features:**
+- View CA certificate and information
+- Generate new certificates
+- List issued certificates
+- Download certificates and keys
 
 ### Web UI Endpoints
 - `GET /` or `GET /ui/` - Dashboard
@@ -232,28 +469,225 @@ Health check endpoint.
 - `GET /ui/generate` - Generate new certificate form
 - `GET /ui/download-ca` - Download CA certificate
 
-## Examples
+## Advanced Examples
 
 ### Generate Certificates for Multiple Services
 
 ```go
-services := []struct {
-    name    string
-    ip      string
-    domains []string
-}{
-    {"web-server", "10.0.1.10", []string{"web.example.com", "www.example.com"}},
-    {"api-server", "10.0.1.20", []string{"api.example.com", "v1.api.example.com"}},
-    {"database", "10.0.1.30", []string{"db.internal", "postgres.internal"}},
+package main
+
+import (
+    "log"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    // Create CA with persistence
+    config := ca.DefaultCAConfig()
+    config.PersistDir = "./certificates"
+    certificateAuthority, err := ca.NewCA(config)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    services := []ca.CertRequest{
+        {ServiceName: "web-server", ServiceIP: "10.0.1.10", Domains: []string{"web.example.com", "www.example.com"}},
+        {ServiceName: "api-server", ServiceIP: "10.0.1.20", Domains: []string{"api.example.com", "v1.api.example.com"}},
+        {ServiceName: "database", ServiceIP: "10.0.1.30", Domains: []string{"db.internal", "postgres.internal"}},
+    }
+
+    for _, service := range services {
+        resp, err := certificateAuthority.IssueServiceCertificate(service)
+        if err != nil {
+            log.Printf("Failed to generate cert for %s: %v", service.ServiceName, err)
+            continue
+        }
+        
+        log.Printf("Generated certificate for %s with domains: %v", 
+            service.ServiceName, service.Domains)
+        
+        // Save to files (or handle as needed)
+        // ioutil.WriteFile(fmt.Sprintf("%s.crt", service.ServiceName), []byte(resp.Certificate), 0644)
+        // ioutil.WriteFile(fmt.Sprintf("%s.key", service.ServiceName), []byte(resp.PrivateKey), 0600)
+    }
+}
+```
+
+### Custom Storage Backend
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+// Custom storage backend using a database
+type DatabaseStorage struct {
+    // database connection, etc.
 }
 
-ca, _ := ca.NewCA(nil)
-for _, service := range services {
-    cert, key, err := ca.GenerateCertificate(service.name, service.ip, service.domains)
+func (ds *DatabaseStorage) SaveCertificate(serviceName string, cert, key string) error {
+    // Save to database
+    fmt.Printf("Saving certificate for %s to database\n", serviceName)
+    return nil
+}
+
+func (ds *DatabaseStorage) LoadCertificate(serviceName string) (cert, key string, err error) {
+    // Load from database
+    return "", "", fmt.Errorf("not found")
+}
+
+func (ds *DatabaseStorage) SaveCA(cert, key string) error {
+    // Save CA to database
+    return nil
+}
+
+func (ds *DatabaseStorage) LoadCA() (cert, key string, err error) {
+    // Load CA from database
+    return "", "", fmt.Errorf("not found")
+}
+
+func (ds *DatabaseStorage) ListCertificates() ([]string, error) {
+    // List from database
+    return []string{}, nil
+}
+
+func (ds *DatabaseStorage) DeleteCertificate(serviceName string) error {
+    // Delete from database
+    return nil
+}
+
+func main() {
+    config := ca.DefaultCAConfig()
+    config.StorageBackend = &DatabaseStorage{}
+    
+    certificateAuthority, err := ca.NewCA(config)
     if err != nil {
-        log.Printf("Failed to generate cert for %s: %v", service.name, err)
-        continue
+        log.Fatal(err)
     }
+    
+    // Use CA with custom storage
+    req := ca.CertRequest{
+        ServiceName: "my-service",
+        ServiceIP:   "192.168.1.100",
+        Domains:     []string{"service.local"},
+    }
+    
+    resp, err := certificateAuthority.IssueServiceCertificate(req)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    log.Printf("Certificate issued and saved to custom storage: %s", resp.Certificate[:50])
+}
+```
+
+### Complete Docker-Compose Integration
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  ca-server:
+    build: .
+    ports:
+      - "8090:8090"
+    environment:
+      - CA_API_KEY=secure-api-key-here
+    volumes:
+      - ca-data:/app/ca-data
+    command: ["./ca-server"]
+
+  web-service:
+    build: ./web-service
+    ports:
+      - "8443:8443"
+    environment:
+      - SGL_CA=http://ca-server:8090
+      - SGL_CA_API_KEY=secure-api-key-here
+    depends_on:
+      - ca-server
+
+volumes:
+  ca-data:
+```
+
+```go
+// main.go for ca-server
+package main
+
+import (
+    "log"
+    "os"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    config := &ca.ServerConfig{
+        Port:      "8090",
+        CAConfig:  ca.DefaultCAConfig(),
+        EnableGUI: true,
+        GUIAPIKey: os.Getenv("CA_API_KEY"),
+    }
+    
+    // Enable persistence
+    config.CAConfig.PersistDir = "./ca-data"
+    
+    server, err := ca.NewServer(config)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Println("Starting CA server with persistence and API key protection...")
+    log.Fatal(server.Start())
+}
+```
+
+### Production Configuration
+
+```go
+package main
+
+import (
+    "log"
+    "time"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    // Production-ready CA configuration
+    config := &ca.CAConfig{
+        CertValidDays: 90,        // 3 months validity
+        KeySize:      4096,       // Strong encryption
+        Organization: "My Company",
+        Country:      "US",
+        PersistDir:   "/var/lib/ca", // Persistent storage
+    }
+    
+    serverConfig := &ca.ServerConfig{
+        Port:      "8090",
+        CAConfig:  config,
+        EnableGUI: true,
+        GUIAPIKey: "production-secure-key-change-me", // Use env var in production
+    }
+    
+    server, err := ca.NewServer(serverConfig)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Println("Starting production CA server...")
+    log.Println("- Certificate validity: 90 days")
+    log.Println("- Key size: 4096 bits")  
+    log.Println("- Persistent storage: /var/lib/ca")
+    log.Println("- GUI protected with API key")
+    
+    log.Fatal(server.Start())
+}
+```
     // Save certificate and key files
     saveToFile(fmt.Sprintf("%s.crt", service.name), cert)
     saveToFile(fmt.Sprintf("%s.key", service.name), key)
