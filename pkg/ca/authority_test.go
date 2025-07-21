@@ -29,8 +29,8 @@ func TestNewCA(t *testing.T) {
 		t.Fatal("CA private key is nil")
 	}
 
-	if ca.certStore == nil {
-		t.Fatal("Certificate store is nil")
+	if ca.storage == nil {
+		t.Fatal("Certificate storage is nil")
 	}
 }
 
@@ -309,9 +309,14 @@ func TestGetCertificateCount(t *testing.T) {
 
 	// Issue certificates
 	for i := 0; i < 3; i++ {
-		_, _, err = ca.GenerateCertificate("test-service", "127.0.0.1", []string{"test.com"})
+		req := CertRequest{
+			ServiceName: "test-service",
+			ServiceIP:   "127.0.0.1",
+			Domains:     []string{"test.com"},
+		}
+		_, err = ca.IssueServiceCertificate(req)
 		if err != nil {
-			t.Fatalf("Failed to generate certificate %d: %v", i, err)
+			t.Fatalf("Failed to issue certificate %d: %v", i, err)
 		}
 	}
 
@@ -482,7 +487,12 @@ func TestConcurrentCertificateGeneration(t *testing.T) {
 				serviceName := fmt.Sprintf("service-%d-%d", goroutineID, j)
 				domains := []string{fmt.Sprintf("%s.example.com", serviceName)}
 
-				_, _, err := ca.GenerateCertificate(serviceName, "127.0.0.1", domains)
+				req := CertRequest{
+					ServiceName: serviceName,
+					ServiceIP:   "127.0.0.1",
+					Domains:     domains,
+				}
+				_, err := ca.IssueServiceCertificate(req)
 				if err != nil {
 					done <- fmt.Errorf("goroutine %d cert %d failed: %v", goroutineID, j, err)
 					return

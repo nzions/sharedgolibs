@@ -14,7 +14,7 @@ import (
 func GetServiceCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error) {
 	// Default CA daemon address
 	caURL := "http://localhost:8090/cert"
-	
+
 	// Create certificate request
 	req := CertRequest{
 		ServiceName: serviceName,
@@ -39,7 +39,7 @@ func GetServiceCertificate(serviceName, serviceIP string, domains []string) (*Ce
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	
+
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request certificate from CA: %w", err)

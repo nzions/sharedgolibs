@@ -13,8 +13,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	"net"
-	"strings"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -27,8 +27,9 @@ const (
 type CA struct {
 	cert       *x509.Certificate
 	privateKey *rsa.PrivateKey
-	certStore  map[string]*IssuedCert
-	mutex      sync.RWMutex
+	storage    CertStorage
+	mutex      sync.RWMutex // Protects CA certificate and private key
+	persistDir string       // Directory for CA persistence (empty = RAM only)
 }
 
 // IssuedCert represents a certificate that has been issued by the CA
@@ -70,6 +71,9 @@ type CAConfig struct {
 
 	// Key size for CA private key (default: 4096)
 	KeySize int
+
+	// Directory to persist CA data (empty = RAM only)
+	PersistDir string
 }
 
 // HTTPTransportSettings configures the global HTTP transport
@@ -93,6 +97,7 @@ func DefaultCAConfig() *CAConfig {
 		CommonName:         "SharedGoLibs Root CA",
 		ValidityPeriod:     365 * 24 * time.Hour, // 1 year
 		KeySize:            4096,
+		PersistDir:         "", // RAM only by default
 	}
 }
 
@@ -103,7 +108,20 @@ func NewCA(config *CAConfig) (*CA, error) {
 	}
 
 	ca := &CA{
-		certStore: make(map[string]*IssuedCert),
+		persistDir: config.PersistDir,
+	}
+
+	// Initialize storage based on configuration
+	var err error
+	if config.PersistDir != "" {
+		ca.storage, err = NewDiskStorage(config.PersistDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize disk storage: %w", err)
+		}
+		fmt.Printf("[ca] Using disk storage: %s\n", config.PersistDir)
+	} else {
+		ca.storage = NewRAMStorage()
+		fmt.Printf("[ca] Using RAM-only storage\n")
 	}
 
 	if err := ca.initialize(config); err != nil {
@@ -115,7 +133,20 @@ func NewCA(config *CAConfig) (*CA, error) {
 
 // initialize sets up the CA certificate and private key
 func (ca *CA) initialize(config *CAConfig) error {
-	// Generate CA private key
+	// Try to load existing CA from disk if persistence is enabled
+	if ca.persistDir != "" {
+		if err := ca.loadCAFromDisk(); err != nil {
+			return fmt.Errorf("failed to load CA from disk: %w", err)
+		}
+	}
+
+	// If we loaded an existing CA, we're done
+	if ca.cert != nil && ca.privateKey != nil {
+		fmt.Printf("[ca] Loaded existing CA from disk\n")
+		return nil
+	}
+
+	// Generate new CA private key
 	var err error
 	ca.privateKey, err = rsa.GenerateKey(rand.Reader, config.KeySize)
 	if err != nil {
@@ -154,6 +185,17 @@ func (ca *CA) initialize(config *CAConfig) error {
 		return fmt.Errorf("failed to parse CA certificate: %w", err)
 	}
 
+	// Save the newly created CA to disk
+	if err := ca.saveCAKeyToDisk(); err != nil {
+		return fmt.Errorf("failed to save CA to disk: %w", err)
+	}
+
+	if ca.persistDir != "" {
+		fmt.Printf("[ca] Created and saved new CA to disk\n")
+	} else {
+		fmt.Printf("[ca] Created new CA (RAM only)\n")
+	}
+
 	return nil
 }
 
@@ -188,116 +230,36 @@ func (ca *CA) IssueServiceCertificate(req CertRequest) (*CertResponse, error) {
 
 // GenerateCertificate creates a new certificate for a service with the specified domains
 func (ca *CA) GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error) {
-	// Generate service private key
-	serviceKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to generate service private key: %w", err)
-	}
-
-	// Generate serial number
-	serialNumber := big.NewInt(time.Now().Unix())
-
-	// Create service certificate template
-	template := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			Country:            []string{"US"},
-			Province:           []string{"Local"},
-			Locality:           []string{"Local"},
-			Organization:       []string{"SharedGoLibs Development"},
-			OrganizationalUnit: []string{"Service"},
-			CommonName:         serviceName + ".local",
-		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(30 * 24 * time.Hour), // 30 days
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		SubjectKeyId: []byte{1, 2, 3, 4, 5},
-	}
-
-	// Add IP address
-	if serviceIP != "" {
-		if ip := net.ParseIP(serviceIP); ip != nil {
-			template.IPAddresses = []net.IP{ip}
-		}
-	}
-
-	// Add DNS names
-	for _, domain := range domains {
-		domain = strings.TrimSpace(domain)
-		if domain != "" {
-			// Check if it's an IP address
-			if ip := net.ParseIP(domain); ip != nil {
-				template.IPAddresses = append(template.IPAddresses, ip)
-			} else {
-				template.DNSNames = append(template.DNSNames, domain)
-			}
-		}
-	}
-
-	// Create service certificate
-	serviceCertDER, err := x509.CreateCertificate(rand.Reader, &template, ca.cert, &serviceKey.PublicKey, ca.privateKey)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create service certificate: %w", err)
-	}
-
-	// Encode certificate as PEM
-	serviceCertPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: serviceCertDER,
-	})
-
-	// Encode private key as PEM
-	serviceKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(serviceKey),
-	})
-
-	// Store in certificate store
-	issuedCert := &IssuedCert{
-		ServiceName:  serviceName,
-		Domains:      domains,
-		IssuedAt:     time.Now(),
-		ExpiresAt:    template.NotAfter,
-		Certificate:  string(serviceCertPEM),
-		SerialNumber: fmt.Sprintf("%x", serialNumber),
-	}
-
-	ca.mutex.Lock()
-	ca.certStore[issuedCert.SerialNumber] = issuedCert
-	ca.mutex.Unlock()
-
-	return string(serviceCertPEM), string(serviceKeyPEM), nil
+	// Delegate to storage for thread-safe generation and storage
+	return ca.storage.GenerateAndStore(ca, serviceName, serviceIP, domains)
 }
 
 // GetIssuedCertificates returns all issued certificates
 func (ca *CA) GetIssuedCertificates() []*IssuedCert {
-	ca.mutex.RLock()
-	defer ca.mutex.RUnlock()
-
-	certs := make([]*IssuedCert, 0, len(ca.certStore))
-	for _, cert := range ca.certStore {
-		certs = append(certs, cert)
+	certs, err := ca.storage.GetAll()
+	if err != nil {
+		// Log error but return empty slice to maintain API compatibility
+		return []*IssuedCert{}
 	}
-
 	return certs
 }
 
 // GetCertificateBySerial returns a certificate by its serial number
 func (ca *CA) GetCertificateBySerial(serial string) (*IssuedCert, bool) {
-	ca.mutex.RLock()
-	defer ca.mutex.RUnlock()
-
-	cert, exists := ca.certStore[serial]
-	return cert, exists
+	cert, err := ca.storage.GetBySerial(serial)
+	if err != nil {
+		return nil, false
+	}
+	return cert, cert != nil
 }
 
 // GetCertificateCount returns the number of issued certificates
 func (ca *CA) GetCertificateCount() int {
-	ca.mutex.RLock()
-	defer ca.mutex.RUnlock()
-
-	return len(ca.certStore)
+	count, err := ca.storage.Count()
+	if err != nil {
+		return 0
+	}
+	return count
 }
 
 // GetCAInfo returns information about the CA certificate
@@ -332,4 +294,93 @@ func ParseCertRequest(data []byte) (*CertRequest, error) {
 // MarshalCertResponse converts a certificate response to JSON
 func MarshalCertResponse(resp *CertResponse) ([]byte, error) {
 	return json.Marshal(resp)
+}
+
+// saveCAKeyToDisk saves the CA certificate and private key to disk
+func (ca *CA) saveCAKeyToDisk() error {
+	if ca.persistDir == "" {
+		return nil // RAM-only mode
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(ca.persistDir, 0755); err != nil {
+		return fmt.Errorf("failed to create persist directory %s: %w", ca.persistDir, err)
+	}
+
+	// Save CA certificate
+	caCertPath := filepath.Join(ca.persistDir, "ca-cert.pem")
+	caCertPEM := ca.CertificatePEM()
+	if err := os.WriteFile(caCertPath, caCertPEM, 0644); err != nil {
+		return fmt.Errorf("failed to save CA certificate: %w", err)
+	}
+
+	// Save CA private key
+	caKeyPath := filepath.Join(ca.persistDir, "ca-key.pem")
+	caKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(ca.privateKey),
+	})
+	if err := os.WriteFile(caKeyPath, caKeyPEM, 0600); err != nil {
+		return fmt.Errorf("failed to save CA private key: %w", err)
+	}
+
+	return nil
+}
+
+// loadCAFromDisk loads the CA certificate and private key from disk
+func (ca *CA) loadCAFromDisk() error {
+	if ca.persistDir == "" {
+		return nil // RAM-only mode
+	}
+
+	caCertPath := filepath.Join(ca.persistDir, "ca-cert.pem")
+	caKeyPath := filepath.Join(ca.persistDir, "ca-key.pem")
+
+	// Check if both files exist
+	if _, err := os.Stat(caCertPath); os.IsNotExist(err) {
+		return nil // No existing CA to load
+	}
+	if _, err := os.Stat(caKeyPath); os.IsNotExist(err) {
+		return nil // No existing CA to load
+	}
+
+	// Load certificate
+	certPEM, err := os.ReadFile(caCertPath)
+	if err != nil {
+		return fmt.Errorf("failed to read CA certificate: %w", err)
+	}
+
+	certBlock, _ := pem.Decode(certPEM)
+	if certBlock == nil {
+		return fmt.Errorf("failed to decode CA certificate PEM")
+	}
+
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse CA certificate: %w", err)
+	}
+
+	// Load private key
+	keyPEM, err := os.ReadFile(caKeyPath)
+	if err != nil {
+		return fmt.Errorf("failed to read CA private key: %w", err)
+	}
+
+	keyBlock, _ := pem.Decode(keyPEM)
+	if keyBlock == nil {
+		return fmt.Errorf("failed to decode CA private key PEM")
+	}
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse CA private key: %w", err)
+	}
+
+	// Set the loaded certificate and key
+	ca.mutex.Lock()
+	ca.cert = cert
+	ca.privateKey = privateKey
+	ca.mutex.Unlock()
+
+	return nil
 }
