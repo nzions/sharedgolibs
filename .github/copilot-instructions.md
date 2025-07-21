@@ -16,8 +16,7 @@ This repository follows [Semantic Versioning](https://semver.org/) strictly:
 
 1. **Update Package Version Constant**: Update the `Version` constant in the modified package
 2. **Update Documentation**: Reflect version changes in README.md examples  
-3. **Create Git Tag**: Tag releases with package-specific tags (e.g., `util/v0.2.0`, `middleware/v0.1.1`)
-4. **Update Tests**: Ensure version tests pass
+3. **Update Tests**: Ensure version tests pass
 
 ### Package Version Format
 
@@ -29,21 +28,6 @@ const Version = "v0.1.0"
 
 // In pkg/middleware/cors.go  
 const Version = "v0.1.0"
-```
-
-### Git Tagging Strategy
-
-Use package-specific tags for releases:
-
-```bash
-# For util package changes
-git tag util/v0.2.0
-
-# For middleware package changes  
-git tag middleware/v0.1.1
-
-# For changes affecting multiple packages
-git tag util/v0.2.0 middleware/v0.1.1
 ```
 
 ### Examples of Version Changes:
@@ -87,8 +71,7 @@ When making changes:
    
    Package Version: util/v0.1.1 (PATCH - bug fix)
    ```
-7. **Create Package Version Tag**: `git tag util/v0.1.1`
-8. **Push Changes**: `git push origin feature/description && git push --tags`
+7. **Push Changes**: `git push origin feature/description`
 
 ## Package Design Principles
 
@@ -152,14 +135,14 @@ When updating sharedgolibs in allmytails or googleemu:
 
 ### Release Process
 1. **CREATE** release notes with breaking changes clearly marked
-2. **TAG** releases with semantic version
-3. **UPDATE** consuming projects with specific version requirements
-4. **COMMUNICATE** breaking changes to all stakeholders
+2. **UPDATE** consuming projects with specific package versions
+3. **COMMUNICATE** breaking changes to all stakeholders
+4. **DOCUMENT** version changes in package constants
 
 ## Automation and CI/CD
 
 - **RUN** tests on every commit
-- **VALIDATE** semantic versioning in CI
+- **VALIDATE** package version constants are updated when code changes
 - **BLOCK** merges that break backwards compatibility without version bump
 - **AUTOMATE** dependency updates in consuming projects
 
