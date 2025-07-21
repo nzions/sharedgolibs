@@ -1,9 +1,20 @@
 package util
 
 import (
-"os"
-"testing"
+	"os"
+	"testing"
 )
+
+func TestVersion(t *testing.T) {
+	if Version == "" {
+		t.Error("Version should not be empty")
+	}
+	
+	// Version should follow semantic versioning pattern
+	if len(Version) < 5 || Version[0] != 'v' {
+		t.Errorf("Version %q should follow vX.Y.Z format", Version)
+	}
+}
 
 func TestMustGetEnv(t *testing.T) {
 	tests := []struct {
@@ -38,18 +49,18 @@ func TestMustGetEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-// Set up environment
-if tt.envValue != "" {
-os.Setenv(tt.key, tt.envValue)
-defer os.Unsetenv(tt.key)
-} else {
-os.Unsetenv(tt.key)
-}
+			// Set up environment
+			if tt.envValue != "" {
+				os.Setenv(tt.key, tt.envValue)
+				defer os.Unsetenv(tt.key)
+			} else {
+				os.Unsetenv(tt.key)
+			}
 
-result := MustGetEnv(tt.key, tt.fallback)
-if result != tt.expected {
-t.Errorf("MustGetEnv(%q, %q) = %q, want %q", tt.key, tt.fallback, result, tt.expected)
-}
-})
+			result := MustGetEnv(tt.key, tt.fallback)
+			if result != tt.expected {
+				t.Errorf("MustGetEnv(%q, %q) = %q, want %q", tt.key, tt.fallback, result, tt.expected)
+			}
+		})
 	}
 }
