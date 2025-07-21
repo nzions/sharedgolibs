@@ -10,8 +10,11 @@ import (
 	"time"
 )
 
-//go:embed gui/templates/*.html
+//go:embed gui/templates/*.html gui/static/*
 var templateFS embed.FS
+
+//go:embed gui/static/*
+var staticFS embed.FS
 
 // GUIHandler handles the web GUI requests
 type GUIHandler struct {
@@ -57,6 +60,15 @@ type CertificatesData struct {
 
 // GenerateData holds data for the generate template
 type GenerateData struct {
+	Title         string
+	Page          string
+	Version       string
+	RequireAPIKey bool
+	BaseURL       string
+}
+
+// APIData holds data for the API documentation template
+type APIData struct {
 	Title         string
 	Page          string
 	Version       string
@@ -215,6 +227,34 @@ func (g *GUIHandler) HandleGenerate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+// HandleAPI renders the API documentation page
+func (g *GUIHandler) HandleAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Determine base URL from request
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
+	data := APIData{
+		Title:         "API Documentation",
+		Page:          "api",
+		Version:       Version,
+		RequireAPIKey: g.apiKey != "",
+		BaseURL:       baseURL,
+	}
+
+	if err := g.templates.ExecuteTemplate(w, "base.html", data); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // handleGenerateForm processes the certificate generation form
@@ -962,4 +1002,48 @@ func (g *GUIHandler) HandleLogStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// HandleStatic serves static files (JS, CSS, fonts) from embedded filesystem
+func (g *GUIHandler) HandleStatic(w http.ResponseWriter, r *http.Request) {
+	// Remove /ui/static/ prefix to get the file path within the static directory
+	path := strings.TrimPrefix(r.URL.Path, "/ui/static/")
+	if path == "" || path == "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Construct the full path within the embedded filesystem
+	fullPath := "gui/static/" + path
+
+	// Read the file from embedded filesystem
+	data, err := staticFS.ReadFile(fullPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Set appropriate content type based on file extension
+	var contentType string
+	switch {
+	case strings.HasSuffix(path, ".js"):
+		contentType = "application/javascript"
+	case strings.HasSuffix(path, ".css"):
+		contentType = "text/css"
+	case strings.HasSuffix(path, ".woff2"):
+		contentType = "font/woff2"
+	case strings.HasSuffix(path, ".woff"):
+		contentType = "font/woff"
+	case strings.HasSuffix(path, ".ttf"):
+		contentType = "font/ttf"
+	default:
+		contentType = "application/octet-stream"
+	}
+
+	// Set headers for caching
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+
+	// Write the file content
+	w.Write(data)
 }

@@ -1,4 +1,4 @@
-{{define "content"}}
+{{define "dashboard-content"}}
 <!-- System Status Grid -->
 <div class="grid">
     <div class="stat-panel">
@@ -127,47 +127,6 @@
         <a href="/ui/generate" class="btn btn-primary">GENERATE FIRST CERTIFICATE</a>
     </div>
     {{end}}
-</div>
-
-<!-- Quick Actions -->
-<div class="panel">
-    <h3>OPERATIONS</h3>
-    <div class="download-links">
-        <a href="/ui/generate" class="btn btn-primary">ISSUE NEW CERTIFICATE</a>
-        <a href="/ui/certs" class="btn">VIEW ALL CERTIFICATES</a>
-        <a href="/health" class="btn" target="_blank">SYSTEM HEALTH</a>
-        <a href="/ui/api-docs" class="btn">API DOCUMENTATION</a>
-    </div>
-</div>
-
-<!-- API Endpoints -->
-<div class="panel">
-    <h3>API ENDPOINTS</h3>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px;">
-        <div>
-            <h4>CERTIFICATE OPERATIONS</h4>
-            <code>GET /ca</code> - Download root CA<br>
-            <code>POST /cert</code> - Request certificate<br>
-            <code>GET /cert/{serial}</code> - Download cert<br>
-            <code>GET /cert/{serial}/key</code> - Download key<br>
-        </div>
-        <div>
-            <h4>SYSTEM OPERATIONS</h4>
-            <code>GET /health</code> - Health check<br>
-            <code>GET /ui/logs</code> - Live log stream<br>
-            <code>GET /ui/certs-table</code> - Cert table<br>
-        </div>
-    </div>
-
-    <h4 style="margin-top: 15px;">EXAMPLE REQUEST</h4>
-    <pre><code>curl -X POST {{.BaseURL}}/cert \
-  -H "Content-Type: application/json" \
-  {{if .RequireAPIKey}}-H "X-API-Key: YOUR_API_KEY" \{{end}}
-  -d '{
-    "service_name": "web-service",
-    "service_ip": "192.168.1.100",
-    "domains": ["web.local", "api.web.local"]
-  }'</code></pre>
 </div>
 
 <!-- Live System Logs -->

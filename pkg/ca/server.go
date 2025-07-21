@@ -100,10 +100,11 @@ func (s *Server) Start() error {
 	// Web UI handlers (only if GUI is enabled)
 	if s.enableGUI && s.gui != nil {
 		// Apply API key middleware if configured
-		var dashboardHandler, certsHandler, generateHandler, certDetailsHandler, downloadCAHandler, downloadCAKeyHandler, downloadCertHandler, downloadCertKeyHandler, certsTableHandler, logStreamHandler http.Handler
+		var dashboardHandler, certsHandler, generateHandler, apiHandler, certDetailsHandler, downloadCAHandler, downloadCAKeyHandler, downloadCertHandler, downloadCertKeyHandler, certsTableHandler, logStreamHandler, staticHandler http.Handler
 		dashboardHandler = http.HandlerFunc(s.gui.HandleDashboard)
 		certsHandler = http.HandlerFunc(s.gui.HandleCertificates)
 		generateHandler = http.HandlerFunc(s.gui.HandleGenerate)
+		apiHandler = http.HandlerFunc(s.gui.HandleAPI)
 		certDetailsHandler = http.HandlerFunc(s.gui.HandleCertDetails)
 		downloadCAHandler = http.HandlerFunc(s.gui.HandleDownloadCA)
 		downloadCAKeyHandler = http.HandlerFunc(s.gui.HandleDownloadCAKey)
@@ -111,11 +112,13 @@ func (s *Server) Start() error {
 		downloadCertKeyHandler = http.HandlerFunc(s.gui.HandleDownloadCertKey)
 		certsTableHandler = http.HandlerFunc(s.gui.HandleCertsTable)
 		logStreamHandler = http.HandlerFunc(s.gui.HandleLogStream)
+		staticHandler = http.HandlerFunc(s.gui.HandleStatic)
 
 		if s.guiAPIKey != "" {
 			dashboardHandler = middleware.WithAPIKey(s.guiAPIKey, dashboardHandler)
 			certsHandler = middleware.WithAPIKey(s.guiAPIKey, certsHandler)
 			generateHandler = middleware.WithAPIKey(s.guiAPIKey, generateHandler)
+			apiHandler = middleware.WithAPIKey(s.guiAPIKey, apiHandler)
 			certDetailsHandler = middleware.WithAPIKey(s.guiAPIKey, certDetailsHandler)
 			downloadCAHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAHandler)
 			downloadCAKeyHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAKeyHandler)
@@ -123,17 +126,20 @@ func (s *Server) Start() error {
 			downloadCertKeyHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCertKeyHandler)
 			certsTableHandler = middleware.WithAPIKey(s.guiAPIKey, certsTableHandler)
 			logStreamHandler = middleware.WithAPIKey(s.guiAPIKey, logStreamHandler)
+			// Note: Static files typically don't require API key authentication
 		}
 
 		http.Handle("/", dashboardHandler)
 		http.Handle("/ui/", dashboardHandler)
 		http.Handle("/ui/certs", certsHandler)
 		http.Handle("/ui/generate", generateHandler)
+		http.Handle("/ui/api", apiHandler)
 		http.Handle("/ui/cert-details/", certDetailsHandler)
 		http.Handle("/ui/download-ca", downloadCAHandler)
 		http.Handle("/ca-key", downloadCAKeyHandler)
 		http.Handle("/ui/certs-table", certsTableHandler)
 		http.Handle("/ui/logs", logStreamHandler)
+		http.Handle("/ui/static/", staticHandler)
 
 		// Certificate download routes - these need special handling
 		http.HandleFunc("/cert/", func(w http.ResponseWriter, r *http.Request) {
@@ -174,6 +180,7 @@ func (s *Server) Start() error {
 		log.Printf("[ca]     GET  /ui/   - Web UI dashboard")
 		log.Printf("[ca]     GET  /ui/certs - List issued certificates")
 		log.Printf("[ca]     GET  /ui/generate - Generate new certificate")
+		log.Printf("[ca]     GET  /ui/api - API documentation")
 	} else {
 		log.Printf("[ca]   GUI interface is disabled")
 	}

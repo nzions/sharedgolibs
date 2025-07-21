@@ -1,0 +1,175 @@
+{{define "api-content"}}
+<!-- API Overview -->
+<div class="panel">
+    <h3>API DOCUMENTATION</h3>
+    <p style="color: #66ff66; margin-bottom: 15px; font-size: 10px;">
+        COMPREHENSIVE API REFERENCE FOR WEYLAND-YUTANI CERTIFICATE AUTHORITY SYSTEM
+    </p>
+</div>
+
+<!-- API Endpoints -->
+<div class="panel">
+    <h3>ENDPOINTS REFERENCE</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 10px;">
+        <div>
+            <h4>CERTIFICATE OPERATIONS</h4>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">GET /ca</code><br>
+                <span style="color: #66ff66;">Download root CA certificate (PEM format)</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">GET /ca?format=der</code><br>
+                <span style="color: #66ff66;">Download root CA certificate (DER format)</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">POST /cert</code><br>
+                <span style="color: #66ff66;">Request new service certificate</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">GET /cert/{serial}</code><br>
+                <span style="color: #66ff66;">Download specific certificate</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">GET /cert/{serial}/key</code><br>
+                <span style="color: #66ff66;">Download certificate private key</span>
+            </div>
+        </div>
+        <div>
+            <h4>SYSTEM OPERATIONS</h4>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">GET /health</code><br>
+                <span style="color: #66ff66;">System health check and status</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">GET /ui/logs</code><br>
+                <span style="color: #66ff66;">Live log stream (SSE)</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <code style="color: #00ff41;">GET /ui/certs-table</code><br>
+                <span style="color: #66ff66;">Certificates table data (HTMX)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Certificate Request -->
+<div class="panel">
+    <h3>CERTIFICATE REQUEST</h3>
+    <h4>Request Body (JSON)</h4>
+    <pre><code>{
+  "service_name": "string",     // Unique service identifier
+  "service_ip": "string",       // IPv4 address (e.g., "192.168.1.100")
+  "domains": ["string"]         // Array of domain names and IPs
+}</code></pre>
+
+    <h4>Example Request</h4>
+    <pre><code>curl -X POST {{.BaseURL}}/cert \
+  -H "Content-Type: application/json" \
+  {{if .RequireAPIKey}}-H "X-API-Key: YOUR_API_KEY" \{{end}}
+  -d '{
+    "service_name": "web-service",
+    "service_ip": "192.168.1.100",
+    "domains": ["web.local", "api.web.local", "localhost"]
+  }'</code></pre>
+
+    <h4>Response (JSON)</h4>
+    <pre><code>{
+  "certificate": "-----BEGIN CERTIFICATE-----\n...",
+  "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...",
+  "serial_number": "12345678",
+  "expires_at": "2025-08-20T16:58:37Z",
+  "service_name": "web-service"
+}</code></pre>
+</div>
+
+<!-- Authentication -->
+{{if .RequireAPIKey}}
+<div class="panel">
+    <h3>AUTHENTICATION</h3>
+    <p style="color: #ffaa00; margin-bottom: 10px; font-size: 10px;">
+        ⚠️ API KEY AUTHENTICATION REQUIRED
+    </p>
+    <div style="font-size: 10px; color: #66ff66;">
+        <p><strong>Header Method:</strong></p>
+        <pre><code>X-API-Key: YOUR_SECRET_KEY</code></pre>
+
+        <p><strong>Query Parameter Method:</strong></p>
+        <pre><code>GET /ca?api_key=YOUR_SECRET_KEY</code></pre>
+    </div>
+</div>
+{{else}}
+<div class="panel">
+    <h3>AUTHENTICATION</h3>
+    <p style="color: #00ff41; margin-bottom: 10px; font-size: 10px;">
+        ✅ NO AUTHENTICATION REQUIRED - OPEN ACCESS MODE
+    </p>
+    <div style="font-size: 10px; color: #66ff66;">
+        <p>All endpoints are accessible without authentication.</p>
+        <p>⚠️ For production use, enable API key authentication.</p>
+    </div>
+</div>
+{{end}}
+
+<!-- Response Codes -->
+<div class="panel">
+    <h3>HTTP STATUS CODES</h3>
+    <div style="font-size: 10px; color: #66ff66;">
+        <div style="margin-bottom: 8px;">
+            <code style="color: #00ff41;">200 OK</code> - Request successful
+        </div>
+        <div style="margin-bottom: 8px;">
+            <code style="color: #ffaa00;">400 Bad Request</code> - Invalid request format or parameters
+        </div>
+        <div style="margin-bottom: 8px;">
+            <code style="color: #ff4444;">401 Unauthorized</code> - Missing or invalid API key
+        </div>
+        <div style="margin-bottom: 8px;">
+            <code style="color: #ff4444;">404 Not Found</code> - Certificate or endpoint not found
+        </div>
+        <div style="margin-bottom: 8px;">
+            <code style="color: #ff4444;">405 Method Not Allowed</code> - Invalid HTTP method
+        </div>
+        <div style="margin-bottom: 8px;">
+            <code style="color: #ff4444;">500 Internal Server Error</code> - Server error
+        </div>
+    </div>
+</div>
+
+<!-- Examples -->
+<div class="panel">
+    <h3>COMMON USAGE EXAMPLES</h3>
+
+    <h4>Download Root CA Certificate</h4>
+    <pre><code>curl -o ca.crt {{.BaseURL}}/ca{{if .RequireAPIKey}}?api_key=YOUR_KEY{{end}}</code></pre>
+
+    <h4>Generate Certificate for Web Service</h4>
+    <pre><code>curl -X POST {{.BaseURL}}/cert \
+  -H "Content-Type: application/json" \
+  {{if .RequireAPIKey}}-H "X-API-Key: YOUR_API_KEY" \{{end}}
+  -d '{
+    "service_name": "nginx-web",
+    "service_ip": "10.0.1.50",
+    "domains": ["nginx.local", "www.nginx.local", "10.0.1.50"]
+  }' | jq .</code></pre>
+
+    <h4>Download Specific Certificate</h4>
+    <pre><code>curl -o service.crt {{.BaseURL}}/cert/12345678{{if .RequireAPIKey}}?api_key=YOUR_KEY{{end}}</code></pre>
+
+    <h4>Health Check</h4>
+    <pre><code>curl {{.BaseURL}}/health{{if .RequireAPIKey}}?api_key=YOUR_KEY{{end}}</code></pre>
+</div>
+
+<!-- Rate Limits and Best Practices -->
+<div class="panel">
+    <h3>BEST PRACTICES</h3>
+    <div style="font-size: 10px; color: #66ff66;">
+        <p>• <strong>Service Names:</strong> Use descriptive, unique identifiers</p>
+        <p>• <strong>Domains:</strong> Include all necessary hostnames and IP addresses</p>
+        <p>• <strong>Certificate Storage:</strong> Store certificates and keys securely</p>
+        <p>• <strong>Expiration:</strong> Certificates expire in 30 days - implement renewal</p>
+        <p>• <strong>Private Keys:</strong> Never log or transmit private keys unnecessarily</p>
+        <p>• <strong>Monitoring:</strong> Use /health endpoint for service monitoring</p>
+        <p>• <strong>Batch Operations:</strong> For multiple certificates, use separate requests</p>
+    </div>
+</div>
+{{end}}
