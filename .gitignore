@@ -33,3 +33,12 @@ go.work.sum
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Certificate and key files (security sensitive)
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.der
