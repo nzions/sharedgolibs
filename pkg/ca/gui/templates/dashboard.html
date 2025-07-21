@@ -1,0 +1,126 @@
+{{define "content"}}
+<div class="stats">
+    <div class="stat">
+        <div class="stat-value">{{.CertCount}}</div>
+        <div class="stat-label">Certificates Issued</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{.CAValidUntil}}</div>
+        <div class="stat-label">CA Valid Until</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{.CASerialNumber}}</div>
+        <div class="stat-label">CA Serial Number</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{.Version}}</div>
+        <div class="stat-label">CA Version</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Quick Actions</h3>
+    <p style="margin-bottom: 16px;">Manage your certificates and CA configuration.</p>
+    <a href="/ui/certs" class="btn">📋 View All Certificates</a>
+    <a href="/ui/generate" class="btn btn-success">🔐 Generate New Certificate</a>
+    <a href="/ui/download-ca" class="btn">⬇️ Download Root CA</a>
+</div>
+
+<div class="card">
+    <h3>Recent Certificates</h3>
+    {{if .RecentCerts}}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Service Name</th>
+                <th>Domains</th>
+                <th>Issued</th>
+                <th>Expires</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .RecentCerts}}
+            <tr>
+                <td><strong>{{.ServiceName}}</strong></td>
+                <td>{{range $index, $domain := .Domains}}{{if $index}}, {{end}}{{$domain}}{{end}}</td>
+                <td>{{.IssuedAt.Format "2006-01-02 15:04"}}</td>
+                <td>{{.ExpiresAt.Format "2006-01-02 15:04"}}</td>
+                <td>
+                    {{if .IsExpired}}
+                    <span class="badge badge-danger">Expired</span>
+                    {{else if .IsExpiringSoon}}
+                    <span class="badge badge-warning">Expiring Soon</span>
+                    {{else}}
+                    <span class="badge badge-success">Valid</span>
+                    {{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <div style="margin-top: 16px;">
+        <a href="/ui/certs" class="btn">View All Certificates →</a>
+    </div>
+    {{else}}
+    <p style="color: #86868b; text-align: center; padding: 40px;">
+        No certificates issued yet. <a href="/ui/generate">Generate your first certificate</a> to get started.
+    </p>
+    {{end}}
+</div>
+
+<div class="card">
+    <h3>API Endpoints</h3>
+    <p style="margin-bottom: 16px;">Use these endpoints to integrate with your applications.</p>
+
+    <h4>Download CA Certificate</h4>
+    <pre><code>GET /ca</code></pre>
+    <p style="margin-bottom: 16px;">Download the root CA certificate to trust this CA.</p>
+
+    <h4>Request Service Certificate</h4>
+    <pre><code>POST /cert
+Content-Type: application/json
+
+{
+  "service_name": "my-service",
+  "service_ip": "192.168.1.10",
+  "domains": ["my-service.local", "api.my-service.local"]
+}</code></pre>
+
+    <h4>Health Check</h4>
+    <pre><code>GET /health</code></pre>
+    <p>Check the CA server status and get basic information.</p>
+</div>
+
+<div class="card">
+    <h3>Certificate Authority Information</h3>
+    <table class="table">
+        <tbody>
+            <tr>
+                <td><strong>Subject</strong></td>
+                <td>{{.CASubject}}</td>
+            </tr>
+            <tr>
+                <td><strong>Serial Number</strong></td>
+                <td>{{.CASerialNumber}}</td>
+            </tr>
+            <tr>
+                <td><strong>Valid From</strong></td>
+                <td>{{.CAValidFrom}}</td>
+            </tr>
+            <tr>
+                <td><strong>Valid Until</strong></td>
+                <td>{{.CAValidUntil}}</td>
+            </tr>
+            <tr>
+                <td><strong>Key Algorithm</strong></td>
+                <td>{{.CAKeyAlgorithm}}</td>
+            </tr>
+            <tr>
+                <td><strong>Signature Algorithm</strong></td>
+                <td>{{.CASignatureAlgorithm}}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{{end}}

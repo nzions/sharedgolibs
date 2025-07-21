@@ -14,12 +14,14 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go [basic|server|custom|client]")
+		fmt.Println("Usage: go run main.go [basic|server|secure-server|custom|client|transport]")
 		fmt.Println("Examples:")
-		fmt.Println("  go run main.go basic   # Basic CA usage")
-		fmt.Println("  go run main.go server  # Start HTTP server")
-		fmt.Println("  go run main.go custom  # Custom CA configuration")
-		fmt.Println("  go run main.go client  # Generate multiple certificates")
+		fmt.Println("  go run main.go basic         # Basic CA usage")
+		fmt.Println("  go run main.go server        # Start HTTP server with GUI")
+		fmt.Println("  go run main.go secure-server # Start server with API key authentication")
+		fmt.Println("  go run main.go custom        # Custom CA configuration")
+		fmt.Println("  go run main.go client        # Generate multiple certificates")
+		fmt.Println("  go run main.go transport     # Use transport convenience methods")
 		os.Exit(1)
 	}
 
@@ -30,10 +32,14 @@ func main() {
 		basicExample()
 	case "server":
 		serverExample()
+	case "secure-server":
+		secureServerExample()
 	case "custom":
 		customConfigExample()
 	case "client":
 		multipleServicesExample()
+	case "transport":
+		transportExample()
 	default:
 		fmt.Printf("Unknown example: %s\n", example)
 		os.Exit(1)
@@ -107,19 +113,38 @@ func basicExample() {
 func serverExample() {
 	fmt.Println("=== CA Server Example ===")
 
-	// Create server with default configuration
-	server, err := ca.NewServer(nil)
+	// Create server with GUI enabled and optional API key
+	config := &ca.ServerConfig{
+		Port:      "8090",
+		CAConfig:  nil, // Use defaults
+		EnableGUI: true,
+		GUIAPIKey: "", // Set to enable API key authentication: "your-secret-key"
+	}
+
+	server, err := ca.NewServer(config)
 	if err != nil {
 		log.Fatalf("Failed to create CA server: %v", err)
 	}
 
 	fmt.Println("🚀 Starting CA server...")
 	fmt.Println("   Port: 8090")
-	fmt.Println("   Endpoints:")
+	fmt.Println("   GUI: Enabled")
+	if config.GUIAPIKey != "" {
+		fmt.Printf("   API Key: Required (%s)\n", config.GUIAPIKey)
+		fmt.Println("   Add ?api_key=your-secret-key to URLs or use X-API-Key header")
+	} else {
+		fmt.Println("   API Key: Not required")
+	}
+	fmt.Println("")
+	fmt.Println("   API Endpoints:")
 	fmt.Println("     GET  /ca       - Download CA certificate")
 	fmt.Println("     POST /cert     - Request service certificate")
 	fmt.Println("     GET  /health   - Health check")
-	fmt.Println("     GET  /ui/      - Web UI dashboard")
+	fmt.Println("")
+	fmt.Println("   Web GUI:")
+	fmt.Println("     GET  /ui/      - Dashboard")
+	fmt.Println("     GET  /ui/certs - Certificate list")
+	fmt.Println("     GET  /ui/generate - Generate certificate form")
 	fmt.Println("")
 	fmt.Println("🌐 Open http://localhost:8090/ui/ in your browser")
 	fmt.Println("")
@@ -131,6 +156,63 @@ func serverExample() {
        "service_ip": "192.168.1.10",
        "domains": ["my-service.local", "api.my-service.local"]
      }'`)
+	fmt.Println("")
+	fmt.Println("Press Ctrl+C to stop the server")
+
+	// Start the server (this blocks)
+	if err := server.Start(); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
+}
+
+// secureServerExample demonstrates running the HTTP server with API key authentication
+func secureServerExample() {
+	fmt.Println("=== Secure CA Server Example ===")
+
+	// Create server with API key authentication
+	config := &ca.ServerConfig{
+		Port:      "8090",
+		EnableGUI: true,
+		GUIAPIKey: "secure-api-key-123", // Set API key for authentication
+	}
+
+	server, err := ca.NewServer(config)
+	if err != nil {
+		log.Fatalf("Failed to create CA server: %v", err)
+	}
+
+	fmt.Println("🔒 Starting secure CA server with API key authentication...")
+	fmt.Println("   Port: 8090")
+	fmt.Println("   API Key: secure-api-key-123")
+	fmt.Println("   Endpoints:")
+	fmt.Println("     GET  /ca       - Download CA certificate")
+	fmt.Println("     POST /cert     - Request service certificate")
+	fmt.Println("     GET  /health   - Health check")
+	fmt.Println("     GET  /ui/      - Web UI dashboard")
+	fmt.Println("")
+	fmt.Println("🔑 All endpoints require API key authentication")
+	fmt.Println("   Add header: X-API-Key: secure-api-key-123")
+	fmt.Println("   Or use query parameter: ?api_key=secure-api-key-123")
+	fmt.Println("")
+	fmt.Println("🌐 Open http://localhost:8090/ui/?api_key=secure-api-key-123 in your browser")
+	fmt.Println("")
+	fmt.Println("📝 Example authenticated API request:")
+	fmt.Println(`   curl -X POST http://localhost:8090/cert \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: secure-api-key-123" \
+     -d '{
+       "service_name": "my-service",
+       "service_ip": "192.168.1.10",
+       "domains": ["my-service.local", "api.my-service.local"]
+     }'`)
+	fmt.Println("")
+	fmt.Println("📥 Download CA certificate with authentication:")
+	fmt.Println(`   curl -H "X-API-Key: secure-api-key-123" \
+     http://localhost:8090/ca -o ca.crt`)
+	fmt.Println("")
+	fmt.Println("🔧 Set environment variables for convenience methods:")
+	fmt.Println("   export SGL_CA=http://localhost:8090")
+	fmt.Println("   export SGL_CA_API_KEY=secure-api-key-123")
 	fmt.Println("")
 	fmt.Println("Press Ctrl+C to stop the server")
 
@@ -318,4 +400,93 @@ func multipleServicesExample() {
 	fmt.Printf("   1. Distribute services-ca.crt to all clients\n")
 	fmt.Printf("   2. Configure each service to use its certificate and key\n")
 	fmt.Printf("   3. Set up automatic certificate rotation (certificates expire in 30 days)\n")
+}
+
+// transportExample demonstrates using transport convenience methods
+func transportExample() {
+	fmt.Println("=== Transport Convenience Methods Example ===")
+
+	fmt.Println("This example shows how to use the CA transport convenience methods.")
+	fmt.Println("You'll need a running CA server for this to work.")
+	fmt.Println("")
+
+	fmt.Println("💡 First, start a CA server in another terminal:")
+	fmt.Println("   go run main.go server")
+	fmt.Println("   # OR for secure server:")
+	fmt.Println("   go run main.go secure-server")
+	fmt.Println("")
+
+	fmt.Println("🔧 Set these environment variables:")
+	fmt.Println("   export SGL_CA=http://localhost:8090")
+	fmt.Println("   # For secure server, also set:")
+	fmt.Println("   export SGL_CA_API_KEY=secure-api-key-123")
+	fmt.Println("")
+
+	fmt.Println("📝 Example 1: Update HTTP transport to trust CA")
+	fmt.Println("   This configures the default HTTP client to trust your CA")
+	fmt.Printf(`
+	if err := ca.UpdateTransport(); err != nil {
+		log.Fatalf("Failed to update transport: %%v", err)
+	}
+	fmt.Println("✅ HTTP client now trusts the CA")
+`)
+
+	fmt.Println("")
+	fmt.Println("📝 Example 2: Request a certificate")
+	fmt.Printf(`
+	certResp, err := ca.RequestCertificate(
+		"my-service",
+		"192.168.1.100", 
+		[]string{"my-service.local", "localhost"},
+	)
+	if err != nil {
+		log.Fatalf("Failed to request certificate: %%v", err)
+	}
+	
+	fmt.Printf("Certificate: %%s\n", certResp.Certificate)
+	fmt.Printf("Private Key: %%s\n", certResp.PrivateKey)
+`)
+
+	fmt.Println("")
+	fmt.Println("📝 Example 3: Create secure HTTPS server")
+	fmt.Printf(`
+	import "net/http"
+	
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello from secure server!"))
+	})
+	
+	server, err := ca.CreateSecureHTTPSServer(
+		"web-service",
+		"127.0.0.1",
+		"8443",
+		[]string{"localhost", "web.local"},
+		mux,
+	)
+	if err != nil {
+		log.Fatalf("Failed to create secure server: %%v", err)
+	}
+	
+	fmt.Println("🚀 Starting HTTPS server on :8443")
+	log.Fatal(server.ListenAndServeTLS("", ""))
+`)
+
+	fmt.Println("")
+	fmt.Println("🔄 For a complete working example, try this workflow:")
+	fmt.Println("   1. Terminal 1: go run main.go server")
+	fmt.Println("   2. Terminal 2: export SGL_CA=http://localhost:8090")
+	fmt.Println("   3. Terminal 2: Use the convenience methods in your Go code")
+	fmt.Println("")
+	fmt.Println("🔒 For secure workflow with API keys:")
+	fmt.Println("   1. Terminal 1: go run main.go secure-server")
+	fmt.Println("   2. Terminal 2: export SGL_CA=http://localhost:8090")
+	fmt.Println("   3. Terminal 2: export SGL_CA_API_KEY=secure-api-key-123")
+	fmt.Println("   4. Terminal 2: Use the convenience methods in your Go code")
+	fmt.Println("")
+	fmt.Println("📖 All convenience methods automatically:")
+	fmt.Println("   - Read SGL_CA environment variable for server URL")
+	fmt.Println("   - Read SGL_CA_API_KEY for authentication (if set)")
+	fmt.Println("   - Handle API key authentication in headers")
+	fmt.Println("   - Return appropriate errors for unauthorized requests")
 }

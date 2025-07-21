@@ -1,0 +1,65 @@
+{{define "cert-details"}}
+<div class="card">
+    <h4>{{.ServiceName}}</h4>
+    <table class="table">
+        <tbody>
+            <tr>
+                <td><strong>Service Name</strong></td>
+                <td>{{.ServiceName}}</td>
+            </tr>
+            <tr>
+                <td><strong>Serial Number</strong></td>
+                <td><code>{{.SerialNumber}}</code></td>
+            </tr>
+            <tr>
+                <td><strong>Issued At</strong></td>
+                <td>{{.IssuedAt.Format "2006-01-02 15:04:05 MST"}}</td>
+            </tr>
+            <tr>
+                <td><strong>Expires At</strong></td>
+                <td>{{.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}</td>
+            </tr>
+            <tr>
+                <td><strong>Status</strong></td>
+                <td>
+                    {{if .IsExpired}}
+                    <span class="badge badge-danger">Expired</span>
+                    {{else if .IsExpiringSoon}}
+                    <span class="badge badge-warning">Expiring Soon</span>
+                    {{else}}
+                    <span class="badge badge-success">Valid</span>
+                    {{end}}
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Domains</strong></td>
+                <td>
+                    {{range $index, $domain := .Domains}}
+                    {{if $index}}<br />{{end}}
+                    <code>{{$domain}}</code>
+                    {{end}}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h4>Certificate (PEM)</h4>
+    <textarea class="form-input" rows="10" readonly onclick="this.select()">{{.Certificate}}</textarea>
+    <p style="margin-top: 8px; color: #86868b; font-size: 14px;">
+        Click in the text area to select all, then copy to your clipboard.
+    </p>
+</div>
+
+<div style="margin-top: 16px;">
+    <button class="btn" hx-post="/ui/renew/{{.SerialNumber}}" hx-target="#cert-modal-content"
+        hx-confirm="Are you sure you want to renew this certificate? This will generate a new certificate with the same domains.">
+        🔄 Renew Certificate
+    </button>
+    <button class="btn btn-danger" hx-delete="/ui/revoke/{{.SerialNumber}}" hx-target="#cert-modal-content"
+        hx-confirm="Are you sure you want to revoke this certificate? This action cannot be undone.">
+        🗑️ Revoke Certificate
+    </button>
+</div>
+{{end}}

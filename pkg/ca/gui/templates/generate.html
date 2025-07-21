@@ -1,0 +1,65 @@
+{{define "content"}}
+<h2>Generate New Certificate</h2>
+<p style="color: #86868b; margin-bottom: 24px;">
+    Create a new SSL certificate for your service. The certificate will be valid for 30 days.
+</p>
+
+<form hx-post="/ui/generate" hx-target="#result" hx-indicator="#loading">
+    <div class="form-group">
+        <label class="form-label" for="service_name">Service Name *</label>
+        <input type="text" id="service_name" name="service_name" class="form-input"
+            placeholder="e.g., web-service, api-backend" required />
+        <small style="color: #86868b;">A unique identifier for your service</small>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" for="service_ip">Service IP Address *</label>
+        <input type="text" id="service_ip" name="service_ip" class="form-input"
+            placeholder="e.g., 192.168.1.100, 10.0.0.50" required />
+        <small style="color: #86868b;">The IP address where your service will run</small>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" for="domains">Domain Names *</label>
+        <textarea id="domains" name="domains" class="form-input" rows="4"
+            placeholder="Enter one domain per line:&#10;example.com&#10;api.example.com&#10;localhost"
+            required></textarea>
+        <small style="color: #86868b;">Enter one domain name per line. Include localhost for local development.</small>
+    </div>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-success">
+            🔐 Generate Certificate
+            <span id="loading" class="loading">...</span>
+        </button>
+        <a href="/ui/certs" class="btn">Cancel</a>
+    </div>
+</form>
+
+<div id="result" style="margin-top: 24px;">
+    <!-- Results will be loaded here -->
+</div>
+
+<div class="card" style="margin-top: 32px;">
+    <h3>💡 Tips</h3>
+    <ul style="margin-left: 20px; color: #86868b;">
+        <li>Use descriptive service names for easy identification</li>
+        <li>Include all domain names and IP addresses your service will use</li>
+        <li>Always include <code>localhost</code> for local development</li>
+        <li>Certificates are valid for 30 days - set up automatic renewal</li>
+        <li>Save both the certificate and private key files securely</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h3>📝 Example API Request</h3>
+    <p style="margin-bottom: 16px;">You can also generate certificates programmatically:</p>
+    <pre><code>curl -X POST http://localhost:8090/cert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "service_name": "my-service",
+    "service_ip": "192.168.1.10",
+    "domains": ["my-service.local", "api.my-service.local"]
+  }'</code></pre>
+</div>
+{{end}}

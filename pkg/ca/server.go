@@ -9,25 +9,34 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/nzions/sharedgolibs/pkg/middleware"
 )
 
 // Server wraps the CA with HTTP server functionality
 type Server struct {
-	ca   *CA
-	port string
+	ca        *CA
+	port      string
+	enableGUI bool
+	guiAPIKey string
+	gui       *GUIHandler
 }
 
 // ServerConfig holds configuration for the CA server
 type ServerConfig struct {
-	Port     string
-	CAConfig *CAConfig
+	Port      string
+	CAConfig  *CAConfig
+	EnableGUI bool   // Enable the web GUI interface
+	GUIAPIKey string // API key required for GUI access (if set)
 }
 
 // DefaultServerConfig returns sensible defaults for server configuration
 func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
-		Port:     "8090",
-		CAConfig: DefaultCAConfig(),
+		Port:      "8090",
+		CAConfig:  DefaultCAConfig(),
+		EnableGUI: true, // GUI enabled by default
+		GUIAPIKey: "",   // No API key by default
 	}
 }
 
@@ -42,34 +51,89 @@ func NewServer(config *ServerConfig) (*Server, error) {
 		return nil, fmt.Errorf("failed to create CA: %w", err)
 	}
 
-	return &Server{
-		ca:   ca,
-		port: config.Port,
-	}, nil
+	server := &Server{
+		ca:        ca,
+		port:      config.Port,
+		enableGUI: config.EnableGUI,
+		guiAPIKey: config.GUIAPIKey,
+	}
+
+	// Initialize GUI handler if enabled
+	if config.EnableGUI {
+		gui, err := NewGUIHandler(ca, config.GUIAPIKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GUI handler: %w", err)
+		}
+		server.gui = gui
+	}
+
+	return server, nil
 }
 
 // Start starts the HTTP server
 func (s *Server) Start() error {
-	// Set up HTTP handlers
-	http.HandleFunc("/ca", s.handleCARequest)
-	http.HandleFunc("/cert", s.handleCertRequest)
-	http.HandleFunc("/health", s.handleHealth)
+	// Set up HTTP handlers with API key protection if configured
+	var caHandler, certHandler, healthHandler http.Handler
+	caHandler = http.HandlerFunc(s.handleCARequest)
+	certHandler = http.HandlerFunc(s.handleCertRequest)
+	healthHandler = http.HandlerFunc(s.handleHealth)
 
-	// Web UI handlers
-	http.HandleFunc("/", s.handleWebUI)
-	http.HandleFunc("/ui/", s.handleWebUI)
-	http.HandleFunc("/ui/certs", s.handleCertsList)
-	http.HandleFunc("/ui/generate", s.handleGenerateForm)
-	http.HandleFunc("/ui/download-ca", s.handleDownloadCA)
+	// Apply API key middleware to API endpoints if API key is configured
+	if s.guiAPIKey != "" {
+		caHandler = middleware.WithAPIKey(s.guiAPIKey, caHandler)
+		certHandler = middleware.WithAPIKey(s.guiAPIKey, certHandler)
+		healthHandler = middleware.WithAPIKey(s.guiAPIKey, healthHandler)
+	}
+
+	http.Handle("/ca", caHandler)
+	http.Handle("/cert", certHandler)
+	http.Handle("/health", healthHandler)
+
+	// Web UI handlers (only if GUI is enabled)
+	if s.enableGUI && s.gui != nil {
+		// Apply API key middleware if configured
+		var dashboardHandler, certsHandler, generateHandler, certDetailsHandler, downloadCAHandler http.Handler
+		dashboardHandler = http.HandlerFunc(s.gui.HandleDashboard)
+		certsHandler = http.HandlerFunc(s.gui.HandleCertificates)
+		generateHandler = http.HandlerFunc(s.gui.HandleGenerate)
+		certDetailsHandler = http.HandlerFunc(s.gui.HandleCertDetails)
+		downloadCAHandler = http.HandlerFunc(s.handleDownloadCA)
+
+		if s.guiAPIKey != "" {
+			dashboardHandler = middleware.WithAPIKey(s.guiAPIKey, dashboardHandler)
+			certsHandler = middleware.WithAPIKey(s.guiAPIKey, certsHandler)
+			generateHandler = middleware.WithAPIKey(s.guiAPIKey, generateHandler)
+			certDetailsHandler = middleware.WithAPIKey(s.guiAPIKey, certDetailsHandler)
+			downloadCAHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAHandler)
+		}
+
+		http.Handle("/", dashboardHandler)
+		http.Handle("/ui/", dashboardHandler)
+		http.Handle("/ui/certs", certsHandler)
+		http.Handle("/ui/generate", generateHandler)
+		http.Handle("/ui/cert-details/", certDetailsHandler)
+		http.Handle("/ui/download-ca", downloadCAHandler)
+	}
 
 	log.Printf("[ca] Certificate Authority listening on port %s", s.port)
 	log.Printf("[ca] Endpoints:")
 	log.Printf("[ca]   GET  /ca    - Download CA certificate")
 	log.Printf("[ca]   POST /cert  - Request service certificate")
 	log.Printf("[ca]   GET  /health - Health check")
-	log.Printf("[ca]   GET  /ui/   - Web UI dashboard")
-	log.Printf("[ca]   GET  /ui/certs - List issued certificates")
-	log.Printf("[ca]   GET  /ui/generate - Generate new certificate")
+
+	if s.guiAPIKey != "" {
+		log.Printf("[ca]   Note: All endpoints require API key authentication")
+		log.Printf("[ca]   Use X-API-Key header or ?api_key= query parameter")
+	}
+
+	if s.enableGUI {
+		log.Printf("[ca]   GUI Interface:")
+		log.Printf("[ca]     GET  /ui/   - Web UI dashboard")
+		log.Printf("[ca]     GET  /ui/certs - List issued certificates")
+		log.Printf("[ca]     GET  /ui/generate - Generate new certificate")
+	} else {
+		log.Printf("[ca]   GUI interface is disabled")
+	}
 
 	return http.ListenAndServe(":"+s.port, nil)
 }

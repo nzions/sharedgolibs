@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - SharedGoLibs CA</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #1d1d1f;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header .subtitle {
+            color: #86868b;
+            font-size: 16px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .nav-link {
+            background: #007aff;
+            color: white;
+            padding: 12px 20px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #0056cc;
+        }
+
+        .nav-link.active {
+            background: #34c759;
+        }
+
+        .content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .card {
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 16px 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .stat {
+            background: #f6f6f6;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #007aff;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            color: #86868b;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: #007aff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 8px 8px 8px 0;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #0056cc;
+        }
+
+        .btn-success {
+            background: #34c759;
+        }
+
+        .btn-success:hover {
+            background: #2fb344;
+        }
+
+        .btn-danger {
+            background: #ff3b30;
+        }
+
+        .btn-danger:hover {
+            background: #d70015;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #1d1d1f;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #d2d2d7;
+        }
+
+        .table th {
+            background: #f6f6f6;
+            font-weight: 600;
+        }
+
+        .table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #d4f4dd;
+            color: #0f5132;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #664d03;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .alert {
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 8px;
+            border: 1px solid transparent;
+        }
+
+        .alert-success {
+            color: #0f5132;
+            background-color: #d1e7dd;
+            border-color: #badbcc;
+        }
+
+        .alert-error {
+            color: #842029;
+            background-color: #f8d7da;
+            border-color: #f5c2c7;
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .htmx-request .loading {
+            display: inline;
+        }
+
+        .htmx-request .btn {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        pre {
+            background: #f6f6f6;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        code {
+            background: #f6f6f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        }
+
+        .footer {
+            text-align: center;
+            color: #86868b;
+            font-size: 14px;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SharedGoLibs Certificate Authority</h1>
+            <p class="subtitle">Dynamic SSL certificate issuance for development services</p>
+            <nav class="nav">
+                <a href="/ui/" class="nav-link {{if eq .Page " dashboard"}}active{{end}}">🏠 Dashboard</a>
+                <a href="/ui/certs" class="nav-link {{if eq .Page " certs"}}active{{end}}">📋 Certificates</a>
+                <a href="/ui/generate" class="nav-link {{if eq .Page " generate"}}active{{end}}">🔐 Generate</a>
+                <a href="/ui/download-ca" class="nav-link">⬇️ Download CA</a>
+            </nav>
+        </div>
+
+        <div class="content">
+            {{template "content" .}}
+        </div>
+
+        <div class="footer">
+            SharedGoLibs CA v{{.Version}} |
+            <a href="https://github.com/nzions/sharedgolibs" style="color: #007aff;">GitHub</a>
+        </div>
+    </div>
+</body>
+
+</html>

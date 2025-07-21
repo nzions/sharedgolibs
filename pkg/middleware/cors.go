@@ -5,7 +5,7 @@ package middleware
 import "net/http"
 
 // Version is the current version of the middleware package
-const Version = "v0.2.0"
+const Version = "v0.3.0"
 
 // WithCORS adds CORS headers to HTTP responses.
 // This middleware allows cross-origin requests from any origin.
