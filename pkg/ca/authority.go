@@ -217,7 +217,7 @@ func (ca *CA) CertificatePEM() []byte {
 func (ca *CA) PrivateKeyPEM() []byte {
 	ca.mutex.RLock()
 	defer ca.mutex.RUnlock()
-	
+
 	return pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(ca.privateKey),

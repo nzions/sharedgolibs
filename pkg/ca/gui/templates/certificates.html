@@ -54,12 +54,12 @@
                 </td>
                 <td>
                     <div class="download-links">
-                        <a href="/cert/{{.SerialNumber}}" class="btn" 
-                           onclick="downloadFile('/cert/{{.SerialNumber}}', '{{.ServiceName}}.crt')" 
-                           title="Download certificate">CERT</a>
-                        <a href="/cert/{{.SerialNumber}}/key" class="btn btn-danger" 
-                           onclick="downloadFile('/cert/{{.SerialNumber}}/key', '{{.ServiceName}}.key')" 
-                           title="Download private key">KEY</a>
+                        <a href="/cert/{{.SerialNumber}}" class="btn"
+                            onclick="downloadFile('/cert/{{.SerialNumber}}', '{{.ServiceName}}.crt')"
+                            title="Download certificate">CERT</a>
+                        <a href="/cert/{{.SerialNumber}}/key" class="btn btn-danger"
+                            onclick="downloadFile('/cert/{{.SerialNumber}}/key', '{{.ServiceName}}.key')"
+                            title="Download private key">KEY</a>
                     </div>
                 </td>
             </tr>
@@ -98,7 +98,8 @@
         max-height: 80vh;
         overflow-y: auto;
     ">
-        <div style="padding: 15px; border-bottom: 1px solid #003300; display: flex; justify-content: space-between; align-items: center;">
+        <div
+            style="padding: 15px; border-bottom: 1px solid #003300; display: flex; justify-content: space-between; align-items: center;">
             <h3>CERTIFICATE DETAILS</h3>
             <button onclick="document.getElementById('cert-modal').style.display='none'" style="
                 background: none;

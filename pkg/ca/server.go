@@ -134,7 +134,7 @@ func (s *Server) Start() error {
 		http.Handle("/ca-key", downloadCAKeyHandler)
 		http.Handle("/ui/certs-table", certsTableHandler)
 		http.Handle("/ui/logs", logStreamHandler)
-		
+
 		// Certificate download routes - these need special handling
 		http.HandleFunc("/cert/", func(w http.ResponseWriter, r *http.Request) {
 			if s.guiAPIKey != "" {
@@ -148,7 +148,7 @@ func (s *Server) Start() error {
 					return
 				}
 			}
-			
+
 			// Check if it's a key request
 			if strings.HasSuffix(r.URL.Path, "/key") {
 				s.gui.HandleDownloadCertKey(w, r)

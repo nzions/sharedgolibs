@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
-        
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -31,13 +31,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: repeating-linear-gradient(
-                90deg,
-                transparent,
-                transparent 2px,
-                rgba(0, 255, 65, 0.03) 2px,
-                rgba(0, 255, 65, 0.03) 4px
-            );
+            background: repeating-linear-gradient(90deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 255, 65, 0.03) 2px,
+                    rgba(0, 255, 65, 0.03) 4px);
             pointer-events: none;
             z-index: 1000;
         }
@@ -54,7 +52,7 @@
             border-radius: 4px;
             padding: 15px;
             margin-bottom: 10px;
-            box-shadow: 
+            box-shadow:
                 0 0 20px rgba(0, 255, 65, 0.3),
                 inset 0 1px 1px rgba(0, 255, 65, 0.1);
             position: relative;
@@ -96,7 +94,7 @@
             margin-top: 24px;
         }
 
-                .nav {
+        .nav {
             display: flex;
             gap: 8px;
             margin-top: 15px;
@@ -151,7 +149,7 @@
             border-radius: 2px;
             padding: 15px;
             margin-bottom: 10px;
-            box-shadow: 
+            box-shadow:
                 0 2px 10px rgba(0, 0, 0, 0.8),
                 inset 0 1px 1px rgba(0, 255, 65, 0.1);
         }
@@ -162,7 +160,7 @@
             border-radius: 2px;
             padding: 12px;
             margin: 8px 0;
-            box-shadow: 
+            box-shadow:
                 0 1px 5px rgba(0, 0, 0, 0.6),
                 inset 0 1px 1px rgba(0, 255, 65, 0.1);
         }
@@ -367,8 +365,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .terminal {
@@ -423,15 +428,27 @@
         }
 
         @keyframes flicker {
-            0%, 18%, 22%, 25%, 53%, 57%, 100% {
+
+            0%,
+            18%,
+            22%,
+            25%,
+            53%,
+            57%,
+            100% {
                 text-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41;
             }
-            20%, 24%, 55% {
+
+            20%,
+            24%,
+            55% {
                 text-shadow: none;
             }
         }
 
-        h2, h3, h4 {
+        h2,
+        h3,
+        h4 {
             color: #00ff41;
             font-family: 'Orbitron', monospace;
             font-size: 14px;
@@ -441,8 +458,13 @@
             text-shadow: 0 0 5px #00ff41;
         }
 
-        h3 { font-size: 12px; }
-        h4 { font-size: 11px; }
+        h3 {
+            font-size: 12px;
+        }
+
+        h4 {
+            font-size: 11px;
+        }
 
         code {
             background: rgba(0, 255, 65, 0.1);
@@ -494,11 +516,11 @@
             .grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .nav {
                 flex-direction: column;
             }
-            
+
             .download-links {
                 flex-direction: column;
             }
@@ -596,7 +618,6 @@
         .htmx-request .loading {
             display: inline;
         }
-
     </style>
 </head>
 
@@ -623,9 +644,9 @@
             <h1 class="flicker">WEYLAND-YUTANI CA SYSTEM</h1>
             <p class="subtitle">CERTIFICATE AUTHORITY // CLASSIFICATION: RESTRICTED</p>
             <nav class="nav">
-                <a href="/ui/" class="nav-link {{if eq .Page "dashboard"}}active{{end}}">MAIN</a>
-                <a href="/ui/certs" class="nav-link {{if eq .Page "certs"}}active{{end}}">CERTS</a>
-                <a href="/ui/generate" class="nav-link {{if eq .Page "generate"}}active{{end}}">ISSUE</a>
+                <a href="/ui/" class="nav-link {{if eq .Page " dashboard"}}active{{end}}">MAIN</a>
+                <a href="/ui/certs" class="nav-link {{if eq .Page " certs"}}active{{end}}">CERTS</a>
+                <a href="/ui/generate" class="nav-link {{if eq .Page " generate"}}active{{end}}">ISSUE</a>
             </nav>
         </div>
 
@@ -651,7 +672,7 @@
                 // Set API key in session storage
                 sessionStorage.setItem('ca-api-key', apiKey);
                 // Add to all future requests
-                document.addEventListener('htmx:configRequest', function(evt) {
+                document.addEventListener('htmx:configRequest', function (evt) {
                     evt.detail.headers['X-API-Key'] = apiKey;
                 });
                 // Hide prompt
@@ -662,7 +683,7 @@
         }
 
         // Check for stored API key
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             const storedKey = sessionStorage.getItem('ca-api-key');
             if (storedKey && document.getElementById('api-key-prompt')) {
                 document.getElementById('api-key-input').value = storedKey;
@@ -676,21 +697,21 @@
             if (!logContainer) return;
 
             const eventSource = new EventSource('/ui/logs');
-            eventSource.onmessage = function(event) {
+            eventSource.onmessage = function (event) {
                 const logLine = document.createElement('div');
                 logLine.textContent = new Date().toISOString().substr(11, 8) + ' ' + event.data;
                 logContainer.appendChild(logLine);
-                
+
                 // Keep only last 50 log lines
                 while (logContainer.children.length > 50) {
                     logContainer.removeChild(logContainer.firstChild);
                 }
-                
+
                 // Auto-scroll to bottom
                 logContainer.scrollTop = logContainer.scrollHeight;
             };
-            
-            eventSource.onerror = function() {
+
+            eventSource.onerror = function () {
                 setTimeout(connectLogStream, 5000); // Reconnect after 5 seconds
             };
         }
