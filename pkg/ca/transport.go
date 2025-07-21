@@ -7,11 +7,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/nzions/sharedgolibs/pkg/util"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // Transport error types for UpdateTransport function
@@ -53,55 +56,71 @@ func UpdateTransport() error {
 		req.Header.Set("X-API-Key", apiKey)
 	}
 
+	// Make the request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrCARequest, err)
 	}
 	defer resp.Body.Close()
 
-	// Check for unauthorized response
 	if resp.StatusCode == http.StatusUnauthorized {
 		return ErrUnauthorized
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%w: server returned status %d", ErrCARequest, resp.StatusCode)
+		return fmt.Errorf("%w: HTTP %d", ErrCARequest, resp.StatusCode)
 	}
 
+	// Read the CA certificate
 	caCertPEM, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrCAResponse, err)
 	}
 
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(caCertPEM) {
-		return ErrCertParse
+	// Parse the PEM-encoded CA certificate
+	block, _ := pem.Decode(caCertPEM)
+	if block == nil {
+		return fmt.Errorf("%w: failed to parse PEM block", ErrCertParse)
 	}
 
-	http.DefaultClient.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{RootCAs: certPool},
+	caCertParsed, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrCertParse, err)
 	}
+
+	// Create a new certificate pool and add the CA certificate
+	caCertPool := x509.NewCertPool()
+	caCertPool.AddCert(caCertParsed)
+
+	// Create a custom transport that trusts the CA certificate
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs: caCertPool,
+		},
+	}
+
+	// Replace the default HTTP client's transport
+	http.DefaultClient.Transport = transport
 
 	return nil
 }
 
-// RequestCertificate requests a certificate from the CA server.
-// Uses the SGL_CA and optionally SGL_CA_API_KEY environment variables.
+// RequestCertificate requests a certificate from the CA server for the given service
 func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error) {
 	caURL := util.MustGetEnv("SGL_CA", "")
 	if caURL == "" {
 		return nil, ErrNoCAURL
 	}
 
-	// Create the certificate request
-	certReq := CertRequest{
+	// Create certificate request
+	certReq := &CertRequest{
 		ServiceName: serviceName,
 		ServiceIP:   serviceIP,
 		Domains:     domains,
 	}
 
 	// Create HTTP request
-	req, err := createCertRequest(caURL+"/cert", &certReq)
+	req, err := createCertRequest(caURL+"/cert", certReq)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
 	}
@@ -112,6 +131,7 @@ func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertR
 		req.Header.Set("X-API-Key", apiKey)
 	}
 
+	// Make the request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
@@ -163,6 +183,113 @@ func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []stri
 	}
 
 	return server, nil
+}
+
+// CreateSecureGRPCServer creates a gRPC server with certificates from the CA.
+// This is a convenience method that requests certificates and returns a configured server.
+func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string, opts ...grpc.ServerOption) (*grpc.Server, error) {
+	// Request certificate from CA
+	certResp, err := RequestCertificate(serviceName, serviceIP, domains)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request certificate: %w", err)
+	}
+
+	// Parse the certificate and key
+	cert, err := tls.X509KeyPair([]byte(certResp.Certificate), []byte(certResp.PrivateKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	// Create TLS credentials
+	creds := credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{cert},
+	})
+
+	// Add TLS credentials to the options
+	opts = append(opts, grpc.Creds(creds))
+
+	// Create gRPC server
+	server := grpc.NewServer(opts...)
+
+	return server, nil
+}
+
+// CreateGRPCCredentials returns gRPC TLS credentials using CA certificates.
+// This is a convenience method for clients that need to connect to gRPC servers with CA-issued certificates.
+func CreateGRPCCredentials() (credentials.TransportCredentials, error) {
+	caURL := util.MustGetEnv("SGL_CA", "")
+	if caURL == "" {
+		return nil, ErrNoCAURL
+	}
+
+	// Create request to get CA certificate
+	req, err := http.NewRequest("GET", caURL+"/ca", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
+	}
+
+	// Add API key if configured
+	apiKey := util.MustGetEnv("SGL_CA_API_KEY", "")
+	if apiKey != "" {
+		req.Header.Set("X-API-Key", apiKey)
+	}
+
+	// Make the request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: HTTP %d", ErrCARequest, resp.StatusCode)
+	}
+
+	// Read the CA certificate
+	caCertPEM, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCAResponse, err)
+	}
+
+	// Parse the PEM-encoded CA certificate
+	block, _ := pem.Decode(caCertPEM)
+	if block == nil {
+		return nil, fmt.Errorf("%w: failed to parse PEM block", ErrCertParse)
+	}
+
+	caCertParsed, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCertParse, err)
+	}
+
+	// Create a new certificate pool and add the CA certificate
+	caCertPool := x509.NewCertPool()
+	caCertPool.AddCert(caCertParsed)
+
+	// Create TLS credentials
+	creds := credentials.NewTLS(&tls.Config{
+		RootCAs: caCertPool,
+	})
+
+	return creds, nil
+}
+
+// UpdateGRPCDialOptions updates default gRPC dial options to trust CA certificates.
+// This is a convenience method for clients that need to dial gRPC servers with CA-issued certificates.
+func UpdateGRPCDialOptions() ([]grpc.DialOption, error) {
+	// Get gRPC credentials
+	creds, err := CreateGRPCCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	return []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+	}, nil
 }
 
 // createCertRequest creates a JSON request for certificate generation
