@@ -343,28 +343,136 @@ HTTP server wrapper for CA with web UI and REST API.
 ### Transport Integration
 
 #### UpdateTransport
-Update default HTTP transport to trust CA certificates:
+Configures the default HTTP client to trust CA certificates by fetching the CA certificate from a CA server and adding it to the trusted root CAs.
+
 ```go
 func UpdateTransport() error
 ```
-Uses environment variables: `SGL_CA`, `SGL_CA_API_KEY`, `SGL_CA_CERT_PATH`. Returns error if `SGL_CA` is not set.
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL (must be http:// or https://)
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+**Global Variables Modified:**
+- `http.DefaultClient.Transport`: Replaced with custom transport trusting the CA
+- `http.DefaultTransport`: Replaced with the same custom transport
+
+This ensures that both direct usage of `http.DefaultClient` and libraries that create HTTP clients based on `http.DefaultTransport` will trust the CA certificate.
+
+Returns an error if `SGL_CA` is not set, invalid, or if the CA certificate cannot be fetched or parsed.
 
 #### UpdateTransportOnlyIf
-Conditionally update default HTTP transport to trust CA certificates:
+Configures the default HTTP client to trust CA certificates only if the `SGL_CA` environment variable is set. This is a conditional version of `UpdateTransport` that gracefully handles the case where no CA server is configured.
+
 ```go
 func UpdateTransportOnlyIf() error
 ```
-Only updates transport if `SGL_CA` environment variable is set. Returns `nil` without error if `SGL_CA` is not set. Returns error if `SGL_CA` is set but CA cannot be configured.
 
-#### SetupFromCAFile
-Setup HTTP transport from CA file:
+**Environment Variables Used:**
+- `SGL_CA` (optional): CA server URL (must be http:// or https://) - if not set, function returns nil
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication (only used if SGL_CA is set)
+
+**Global Variables Modified (only if SGL_CA is set):**
+- `http.DefaultClient.Transport`: Replaced with custom transport trusting the CA
+- `http.DefaultTransport`: Replaced with the same custom transport
+
+Returns nil without error if `SGL_CA` is not set (no-op). Returns an error if `SGL_CA` is set but invalid, or if the CA certificate cannot be fetched or parsed.
+
+#### RequestCertificate
+Requests a certificate from the CA server for a given service. The certificate includes the service name, IP address, and additional domain names.
+
 ```go
-func SetupFromCAFile(caFilePath string) (func(), error)
+func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error)
 ```
-Returns cleanup function to restore original transport.
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL (must be http:// or https://)
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+**Parameters:**
+- `serviceName`: Name of the service requesting the certificate
+- `serviceIP`: IP address of the service
+- `domains`: Additional domain names to include in the certificate
+
+Returns a `CertResponse` containing the PEM-encoded certificate and private key, or an error if the request fails or authentication is required but invalid.
+
+#### CreateSecureHTTPSServer
+Creates an HTTPS server with certificates from the CA. This is a convenience method that requests certificates from the CA server and returns a configured HTTP server ready to serve HTTPS traffic.
+
+```go
+func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*http.Server, error)
+```
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL for certificate requests
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+**Parameters:**
+- `serviceName`: Name of the service for certificate generation
+- `serviceIP`: IP address of the service
+- `port`: Port number the server will listen on (without ":")
+- `domains`: Additional domain names to include in the certificate
+- `handler`: HTTP handler for the server
+
+Returns a configured `*http.Server` with TLS certificates, ready to call `ListenAndServeTLS()`.
+
+#### CreateSecureGRPCServer
+Creates a gRPC server with certificates from the CA. This is a convenience method that requests certificates from the CA server and returns a configured gRPC server with TLS transport credentials.
+
+```go
+func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string, opts ...grpc.ServerOption) (*grpc.Server, error)
+```
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL for certificate requests
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+**Parameters:**
+- `serviceName`: Name of the service for certificate generation
+- `serviceIP`: IP address of the service
+- `domains`: Additional domain names to include in the certificate
+- `opts`: Additional gRPC server options (TLS credentials will be appended)
+
+Returns a configured `*grpc.Server` with TLS credentials, ready to serve.
+
+#### CreateGRPCCredentials
+Returns gRPC TLS credentials using CA certificates. This is a convenience method for gRPC clients that need to connect to servers with CA-issued certificates.
+
+```go
+func CreateGRPCCredentials() (credentials.TransportCredentials, error)
+```
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL to fetch the CA certificate from
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+Returns `credentials.TransportCredentials` that can be used with `grpc.WithTransportCredentials()` for secure gRPC client connections.
+
+#### UpdateGRPCDialOptions
+Returns configured gRPC dial options to trust CA certificates. This is a convenience method for gRPC clients that need to dial servers with CA-issued certificates.
+
+```go
+func UpdateGRPCDialOptions() ([]grpc.DialOption, error)
+```
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL to fetch the CA certificate from
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+Returns a slice of `grpc.DialOption` that can be passed to `grpc.Dial()` or `grpc.NewClient()` to establish secure connections to gRPC servers with CA-issued certificates.
+
+**Example:**
+```go
+opts, err := ca.UpdateGRPCDialOptions()
+if err != nil { 
+    return err 
+}
+conn, err := grpc.Dial("server:443", opts...)
+```
 
 #### Legacy Transport Functions
-- `SetupFromCAService(caServiceURL string) (func(), error)` - Setup from CA service
+- `SetupFromCAFile(caFilePath string) (func(), error)` - Setup HTTP transport from CA file
+- `SetupFromCAService(caServiceURL string) (func(), error)` - Setup from CA service  
 - `SetupFromCABytes(caCertificate []byte) (func(), error)` - Setup from CA bytes
 - `SetupWithDefaults() (func(), error)` - Setup with environment defaults
 
@@ -407,16 +515,23 @@ func DefaultCAConfig() *CAConfig
 
 ### Environment Variables
 
-The package recognizes these environment variables:
+The package recognizes these environment variables for transport configuration:
 
-- `SGL_CA`: CA service URL (e.g., "http://localhost:8090")
-- `SGL_CA_API_KEY`: API key for CA service authentication
-- `SGL_CA_CERT_PATH`: Path to CA certificate file
-- `SGL_CA_INSECURE`: Set to "true" to disable TLS verification (for development)
+- `SGL_CA`: CA service URL (e.g., "http://localhost:8090") - **Required** for transport functions
+- `SGL_CA_API_KEY`: API key for CA service authentication - **Optional** for all transport functions
+
+**Transport Functions Using These Variables:**
+- `UpdateTransport()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
+- `UpdateTransportOnlyIf()` - Optional `SGL_CA`, optionally uses `SGL_CA_API_KEY` 
+- `RequestCertificate()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
+- `CreateSecureHTTPSServer()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
+- `CreateSecureGRPCServer()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
+- `CreateGRPCCredentials()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
+- `UpdateGRPCDialOptions()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
 
 ### Legacy Environment Variables
-- `CA_SERVICE`: Legacy CA service URL
-- `CA_CERT_PATH`: Legacy CA certificate path
+- `CA_SERVICE`: Legacy CA service URL (use `SGL_CA` instead)
+- `CA_CERT_PATH`: Legacy CA certificate path (for file-based setup functions)
 
 ## HTTP API Endpoints
 
