@@ -70,7 +70,9 @@ func validateCAURL(caURL string) error {
 	return nil
 }
 
-// getValidatedCAURL gets the CA URL from environment and validates it
+// getValidatedCAURL gets the CA URL from the SGL_CA environment variable and validates it.
+// Returns an error if SGL_CA is not set, empty, or contains an invalid URL format.
+// The URL must use http:// or https:// scheme and include a valid host.
 func getValidatedCAURL() (string, error) {
 	caURL := util.MustGetEnv("SGL_CA", "")
 	if err := validateCAURL(caURL); err != nil {
@@ -79,9 +81,22 @@ func getValidatedCAURL() (string, error) {
 	return caURL, nil
 }
 
-// UpdateTransport configures the default HTTP client to trust a CA certificate.
-// Uses the SGL_CA environment variable to determine the CA server URL.
-// Optionally uses SGL_CA_API_KEY environment variable for authentication.
+// UpdateTransport configures the default HTTP client to trust a CA certificate by
+// fetching the CA certificate from a CA server and adding it to the trusted root CAs.
+//
+// Environment Variables Used:
+//   - SGL_CA (required): CA server URL (must be http:// or https://)
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Global Variables Modified:
+//   - http.DefaultClient.Transport: Replaced with custom transport trusting the CA
+//   - http.DefaultTransport: Replaced with the same custom transport
+//
+// This ensures that both direct usage of http.DefaultClient and libraries that
+// create HTTP clients based on http.DefaultTransport will trust the CA certificate.
+//
+// Returns an error if SGL_CA is not set, invalid, or if the CA certificate
+// cannot be fetched or parsed.
 func UpdateTransport() error {
 	caURL, err := getValidatedCAURL()
 	if err != nil {
@@ -92,9 +107,20 @@ func UpdateTransport() error {
 }
 
 // UpdateTransportOnlyIf configures the default HTTP client to trust a CA certificate
-// only if the SGL_CA environment variable is set. If SGL_CA is not set, this function
-// returns nil without error. If SGL_CA is set but the CA cannot be reached or configured,
-// it returns an error.
+// only if the SGL_CA environment variable is set. This is a conditional version of
+// UpdateTransport that gracefully handles the case where no CA server is configured.
+//
+// Environment Variables Used:
+//   - SGL_CA (optional): CA server URL (must be http:// or https://) - if not set, function returns nil
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication (only used if SGL_CA is set)
+//
+// Global Variables Modified (only if SGL_CA is set):
+//   - http.DefaultClient.Transport: Replaced with custom transport trusting the CA
+//   - http.DefaultTransport: Replaced with the same custom transport
+//
+// Returns nil without error if SGL_CA is not set (no-op).
+// Returns an error if SGL_CA is set but invalid, or if the CA certificate
+// cannot be fetched or parsed.
 func UpdateTransportOnlyIf() error {
 	caURL := util.MustGetEnv("SGL_CA", "")
 	if caURL == "" {
@@ -111,7 +137,25 @@ func UpdateTransportOnlyIf() error {
 	return updateTransportWithCA(caURL)
 }
 
-// updateTransportWithCA handles the actual transport update logic
+// updateTransportWithCA handles the actual transport update logic by fetching
+// the CA certificate from the specified URL and configuring global HTTP transports.
+//
+// This function:
+//  1. Makes a GET request to caURL+"/ca" to fetch the CA certificate
+//  2. Optionally includes SGL_CA_API_KEY header if the environment variable is set
+//  3. Parses the returned PEM-encoded CA certificate
+//  4. Creates a new http.Transport with a TLS config trusting the CA
+//  5. Replaces both http.DefaultClient.Transport and http.DefaultTransport
+//
+// Global Variables Modified:
+//   - http.DefaultClient.Transport: Set to new transport with CA trust
+//   - http.DefaultTransport: Set to the same transport instance
+//
+// Parameters:
+//   - caURL: The base URL of the CA server (without "/ca" path)
+//
+// Returns an error if the HTTP request fails, the response is invalid,
+// or the certificate cannot be parsed.
 func updateTransportWithCA(caURL string) error {
 	// Create request with optional API key
 	req, err := http.NewRequest("GET", caURL+"/ca", nil)
@@ -177,7 +221,20 @@ func updateTransportWithCA(caURL string) error {
 	return nil
 }
 
-// RequestCertificate requests a certificate from the CA server for the given service
+// RequestCertificate requests a certificate from the CA server for the given service.
+// The certificate includes the service name, IP address, and additional domain names.
+//
+// Environment Variables Used:
+//   - SGL_CA (required): CA server URL (must be http:// or https://)
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Parameters:
+//   - serviceName: Name of the service requesting the certificate
+//   - serviceIP: IP address of the service
+//   - domains: Additional domain names to include in the certificate
+//
+// Returns a CertResponse containing the PEM-encoded certificate and private key,
+// or an error if the request fails or authentication is required but invalid.
 func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error) {
 	caURL, err := getValidatedCAURL()
 	if err != nil {
@@ -228,7 +285,21 @@ func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertR
 }
 
 // CreateSecureHTTPSServer creates an HTTPS server with certificates from the CA.
-// This is a convenience method that requests certificates and returns a configured server.
+// This is a convenience method that requests certificates from the CA server and
+// returns a configured HTTP server ready to serve HTTPS traffic.
+//
+// Environment Variables Used:
+//   - SGL_CA (required): CA server URL for certificate requests
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Parameters:
+//   - serviceName: Name of the service for certificate generation
+//   - serviceIP: IP address of the service
+//   - port: Port number the server will listen on (without ":")
+//   - domains: Additional domain names to include in the certificate
+//   - handler: HTTP handler for the server
+//
+// Returns a configured *http.Server with TLS certificates, ready to call ListenAndServeTLS().
 func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*http.Server, error) {
 	// Request certificate from CA
 	certResp, err := RequestCertificate(serviceName, serviceIP, domains)
@@ -258,7 +329,20 @@ func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []stri
 }
 
 // CreateSecureGRPCServer creates a gRPC server with certificates from the CA.
-// This is a convenience method that requests certificates and returns a configured server.
+// This is a convenience method that requests certificates from the CA server and
+// returns a configured gRPC server with TLS transport credentials.
+//
+// Environment Variables Used:
+//   - SGL_CA (required): CA server URL for certificate requests
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Parameters:
+//   - serviceName: Name of the service for certificate generation
+//   - serviceIP: IP address of the service
+//   - domains: Additional domain names to include in the certificate
+//   - opts: Additional gRPC server options (TLS credentials will be appended)
+//
+// Returns a configured *grpc.Server with TLS credentials, ready to serve.
 func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string, opts ...grpc.ServerOption) (*grpc.Server, error) {
 	// Request certificate from CA
 	certResp, err := RequestCertificate(serviceName, serviceIP, domains)
@@ -287,7 +371,16 @@ func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string, opt
 }
 
 // CreateGRPCCredentials returns gRPC TLS credentials using CA certificates.
-// This is a convenience method for clients that need to connect to gRPC servers with CA-issued certificates.
+// This is a convenience method for gRPC clients that need to connect to servers
+// with CA-issued certificates. The credentials include the CA certificate in the
+// trusted root CAs, allowing verification of server certificates issued by the CA.
+//
+// Environment Variables Used:
+//   - SGL_CA (required): CA server URL to fetch the CA certificate from
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Returns credentials.TransportCredentials that can be used with grpc.WithTransportCredentials()
+// for secure gRPC client connections.
 func CreateGRPCCredentials() (credentials.TransportCredentials, error) {
 	caURL, err := getValidatedCAURL()
 	if err != nil {
@@ -350,8 +443,23 @@ func CreateGRPCCredentials() (credentials.TransportCredentials, error) {
 	return creds, nil
 }
 
-// UpdateGRPCDialOptions updates default gRPC dial options to trust CA certificates.
-// This is a convenience method for clients that need to dial gRPC servers with CA-issued certificates.
+// UpdateGRPCDialOptions returns configured gRPC dial options to trust CA certificates.
+// This is a convenience method for gRPC clients that need to dial servers with CA-issued
+// certificates. The returned dial options include TLS transport credentials with the
+// CA certificate in the trusted root CAs.
+//
+// Environment Variables Used:
+//   - SGL_CA (required): CA server URL to fetch the CA certificate from
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Returns a slice of grpc.DialOption that can be passed to grpc.Dial() or grpc.NewClient()
+// to establish secure connections to gRPC servers with CA-issued certificates.
+//
+// Example:
+//
+//	opts, err := ca.UpdateGRPCDialOptions()
+//	if err != nil { return err }
+//	conn, err := grpc.Dial("server:443", opts...)
 func UpdateGRPCDialOptions() ([]grpc.DialOption, error) {
 	// Get gRPC credentials
 	creds, err := CreateGRPCCredentials()
@@ -364,7 +472,14 @@ func UpdateGRPCDialOptions() ([]grpc.DialOption, error) {
 	}, nil
 }
 
-// createCertRequest creates a JSON request for certificate generation
+// createCertRequest creates an HTTP POST request for certificate generation.
+// Serializes the CertRequest struct to JSON and sets appropriate headers.
+//
+// Parameters:
+//   - url: The full URL endpoint for certificate requests (typically caURL+"/cert")
+//   - certReq: The certificate request data to be JSON-encoded
+//
+// Returns an *http.Request ready to be executed, with Content-Type set to application/json.
 func createCertRequest(url string, certReq *CertRequest) (*http.Request, error) {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(certReq); err != nil {
