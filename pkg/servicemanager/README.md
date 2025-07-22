@@ -413,7 +413,14 @@ The unified servicemanager provides backward compatibility with both portmanager
 
 ## Version
 
-Current version: `v0.2.0`
+Current version: `v0.3.0`
+
+### Recent Changes (v0.3.0)
+- Added Docker Compose integration for autoport generation
+- Added `GenerateAutoPortConfig()` method for creating autoport configurations from `docker-compose.yml`
+- Enhanced template generation with comprehensive service metadata
+- Added Makefile target for easy autoport regeneration
+- Improved error handling and validation for Docker Compose parsing
 
 This package follows [Semantic Versioning](https://semver.org/).
 

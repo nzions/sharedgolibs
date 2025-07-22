@@ -38,7 +38,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const Version = "v0.2.0"
+const Version = "v0.3.0"
 
 // ServiceType represents the type of service discovered
 type ServiceType string
@@ -1180,8 +1180,6 @@ func (sm *ServiceManager) generateAutoPortGoFile(configs map[string]AutoPortConf
 package autoport
 
 import "time"
-
-const Version = "v0.1.0"
 
 // ServiceConfig represents a service configuration with port mappings
 type ServiceConfig struct {

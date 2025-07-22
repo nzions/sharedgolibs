@@ -8,7 +8,7 @@ This work is licensed under [CC0 1.0 Universal](LICENSE).
 
 ## 🚀 Featured Package
 
-### 🎯 Service Manager (v0.2.0) - **NEW UNIFIED LIBRARY**
+### 🎯 Service Manager (v0.3.0) - **NEW UNIFIED LIBRARY**
 Revolutionary unified service management combining port discovery, Docker integration, and process management into a single, powerful OO-style interface.
 
 **🔥 Key Features:**
@@ -322,6 +322,21 @@ go build -o bin/servicemanager ./cmd/servicemanager/
 ./bin/servicemanager --version
 ./bin/servicemanager --help
 ```
+
+### Docker Compose Integration
+
+The servicemanager now includes built-in support for generating autoport configurations from `docker-compose.yml` files:
+
+```bash
+# Using the provided Makefile
+make regen-autoport
+
+# Or manually
+go build -o bin/servicemanager ./cmd/servicemanager/
+./bin/servicemanager -generate=docker-compose.yml
+```
+
+This will regenerate the `pkg/autoport/autoport.go` file with the latest service configurations from your Docker Compose setup.
 
 ## Semantic Versioning
 

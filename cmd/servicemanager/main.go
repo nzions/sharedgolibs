@@ -12,7 +12,7 @@ import (
 	"github.com/nzions/sharedgolibs/pkg/servicemanager"
 )
 
-const version = "3.0.0"
+const version = "3.1.0"
 
 func main() {
 	var (
