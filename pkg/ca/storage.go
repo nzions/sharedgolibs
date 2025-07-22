@@ -34,14 +34,16 @@ type RAMStorage struct {
 	mutex sync.RWMutex
 }
 
-// NewRAMStorage creates a new in-memory storage
+// NewRAMStorage creates a new in-memory certificate storage for issued certificates.
+// Returns a pointer to a RAMStorage instance.
 func NewRAMStorage() *RAMStorage {
 	return &RAMStorage{
 		certs: make(map[string]*IssuedCert),
 	}
 }
 
-// GenerateAndStore generates a certificate and stores it atomically
+// GenerateAndStore generates a certificate and stores it atomically in memory.
+// Returns PEM-encoded certificate, private key, and error if any.
 func (s *RAMStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, domains []string) (string, string, error) {
 	// Generate the certificate
 	serviceCertPEM, serviceKeyPEM, issuedCert, err := s.generateCertificate(ca, serviceName, serviceIP, domains)
@@ -57,7 +59,8 @@ func (s *RAMStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, dom
 	return serviceCertPEM, serviceKeyPEM, nil
 }
 
-// GetAll returns all certificates from memory
+// GetAll returns all certificates from memory.
+// Returns a slice of IssuedCert pointers and error if retrieval fails.
 func (s *RAMStorage) GetAll() ([]*IssuedCert, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -69,7 +72,8 @@ func (s *RAMStorage) GetAll() ([]*IssuedCert, error) {
 	return certs, nil
 }
 
-// GetBySerial returns a certificate by serial number from memory
+// GetBySerial returns a certificate by serial number from memory.
+// Returns the certificate and error if not found.
 func (s *RAMStorage) GetBySerial(serial string) (*IssuedCert, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -81,7 +85,8 @@ func (s *RAMStorage) GetBySerial(serial string) (*IssuedCert, error) {
 	return cert, nil
 }
 
-// Count returns the number of certificates in memory
+// Count returns the number of certificates in memory.
+// Returns the count and error if retrieval fails.
 func (s *RAMStorage) Count() (int, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -95,7 +100,8 @@ type DiskStorage struct {
 	mutex      sync.RWMutex
 }
 
-// NewDiskStorage creates a new disk-based storage
+// NewDiskStorage creates a new disk-based certificate storage for issued certificates.
+// Returns a pointer to DiskStorage and error if initialization fails.
 func NewDiskStorage(persistDir string) (*DiskStorage, error) {
 	storage := &DiskStorage{
 		persistDir: persistDir,
@@ -122,7 +128,8 @@ func NewDiskStorage(persistDir string) (*DiskStorage, error) {
 	return storage, nil
 }
 
-// GenerateAndStore generates a certificate and stores it atomically to disk
+// GenerateAndStore generates a certificate and stores it atomically to disk.
+// Returns PEM-encoded certificate, private key, and error if any.
 func (s *DiskStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, domains []string) (string, string, error) {
 	// Generate the certificate
 	serviceCertPEM, serviceKeyPEM, issuedCert, err := s.generateCertificate(ca, serviceName, serviceIP, domains)
@@ -145,7 +152,8 @@ func (s *DiskStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, do
 	return serviceCertPEM, serviceKeyPEM, nil
 }
 
-// GetAll returns all certificates from disk storage
+// GetAll returns all certificates from disk storage.
+// Returns a slice of IssuedCert pointers and error if retrieval fails.
 func (s *DiskStorage) GetAll() ([]*IssuedCert, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -157,7 +165,8 @@ func (s *DiskStorage) GetAll() ([]*IssuedCert, error) {
 	return certs, nil
 }
 
-// GetBySerial returns a certificate by serial number from disk storage
+// GetBySerial returns a certificate by serial number from disk storage.
+// Returns the certificate and error if not found.
 func (s *DiskStorage) GetBySerial(serial string) (*IssuedCert, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -169,24 +178,28 @@ func (s *DiskStorage) GetBySerial(serial string) (*IssuedCert, error) {
 	return cert, nil
 }
 
-// Count returns the number of certificates in disk storage
+// Count returns the number of certificates in disk storage.
+// Returns the count and error if retrieval fails.
 func (s *DiskStorage) Count() (int, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return len(s.certs), nil
 }
 
-// generateCertificate creates a new certificate (shared logic between storage types)
+// generateCertificate creates a new certificate for the given service and domains (RAMStorage).
+// Returns PEM-encoded certificate, private key, IssuedCert, and error if any.
 func (s *RAMStorage) generateCertificate(ca *CA, serviceName, serviceIP string, domains []string) (string, string, *IssuedCert, error) {
 	return generateCertificateInternal(ca, serviceName, serviceIP, domains)
 }
 
-// generateCertificate creates a new certificate (shared logic between storage types)
+// generateCertificate creates a new certificate for the given service and domains (DiskStorage).
+// Returns PEM-encoded certificate, private key, IssuedCert, and error if any.
 func (s *DiskStorage) generateCertificate(ca *CA, serviceName, serviceIP string, domains []string) (string, string, *IssuedCert, error) {
 	return generateCertificateInternal(ca, serviceName, serviceIP, domains)
 }
 
-// generateCertificateInternal contains the shared certificate generation logic
+// generateCertificateInternal contains the shared certificate generation logic for both storage types.
+// Returns PEM-encoded certificate, private key, IssuedCert, and error if any.
 func generateCertificateInternal(ca *CA, serviceName, serviceIP string, domains []string) (string, string, *IssuedCert, error) {
 	// Generate service private key
 	serviceKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -280,7 +293,8 @@ func generateCertificateInternal(ca *CA, serviceName, serviceIP string, domains 
 	return string(serviceCertPEM), string(serviceKeyPEM), issuedCert, nil
 }
 
-// saveToDisk saves the certificate store to disk (must be called with mutex locked)
+// saveToDisk saves the certificate store to disk (must be called with mutex locked).
+// Returns error if saving fails.
 func (s *DiskStorage) saveToDisk() error {
 	certStorePath := filepath.Join(s.persistDir, "cert-store.json")
 
@@ -296,7 +310,8 @@ func (s *DiskStorage) saveToDisk() error {
 	return nil
 }
 
-// loadFromDisk loads the certificate store from disk
+// loadFromDisk loads the certificate store from disk.
+// Returns error if loading fails.
 func (s *DiskStorage) loadFromDisk() error {
 	certStorePath := filepath.Join(s.persistDir, "cert-store.json")
 

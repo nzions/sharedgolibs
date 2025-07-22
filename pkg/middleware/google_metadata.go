@@ -5,10 +5,8 @@ package middleware
 import "net/http"
 
 // WithGoogleMetadataFlavor adds Google Cloud metadata flavor headers to HTTP responses.
-// This middleware adds the standard headers that identify responses as coming from
-// Google Cloud metadata service, useful for applications that expect these headers.
-//
-// Example:
+// Adds standard headers that identify responses as coming from Google Cloud metadata service.
+// Example usage:
 //
 //	handler := middleware.WithGoogleMetadataFlavor(myHandler)
 func WithGoogleMetadataFlavor(next http.Handler) http.Handler {

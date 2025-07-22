@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// ResponseRecorder wraps http.ResponseWriter to capture status code
+// ResponseRecorder wraps http.ResponseWriter to capture status code.
 type ResponseRecorder struct {
 	http.ResponseWriter
 	Status int
@@ -20,7 +20,8 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-// WithLogging creates a logging middleware that works with both log.Logger and slog.Logger
+// WithLogging creates a logging middleware that works with both log.Logger and slog.Logger.
+// Returns a middleware handler that logs requests and responses.
 func WithLogging(logger interface{}) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

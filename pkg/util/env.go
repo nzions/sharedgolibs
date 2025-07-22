@@ -9,7 +9,10 @@ const Version = "v0.1.0"
 
 // MustGetEnv returns the value of the environment variable named by key.
 // If the variable is not set or empty, returns the fallback value.
-// This function unifies the environment variable handling across allmytails and googleemu.
+// Unifies environment variable handling across projects.
+// Example usage:
+//
+//	dbURL := util.MustGetEnv("DATABASE_URL", "localhost:5432")
 func MustGetEnv(key, fallback string) string {
 	value := os.Getenv(key)
 	if value == "" {

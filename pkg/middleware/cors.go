@@ -8,7 +8,7 @@ import "net/http"
 const Version = "v0.3.0"
 
 // WithCORS adds CORS headers to HTTP responses.
-// This middleware allows cross-origin requests from any origin.
+// Allows cross-origin requests from any origin.
 func WithCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")

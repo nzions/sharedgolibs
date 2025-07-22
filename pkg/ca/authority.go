@@ -87,7 +87,15 @@ type HTTPTransportSettings struct {
 	ExpectContinueTimeout time.Duration
 }
 
-// DefaultCAConfig returns sensible defaults for CA configuration
+// DefaultCAConfig returns a CAConfig struct populated with sensible defaults for development and testing.
+// Example:
+//
+//	config := ca.DefaultCAConfig()
+//
+// DefaultCAConfig returns a CAConfig struct populated with sensible defaults for development and testing.
+// Example usage:
+//
+//	config := ca.DefaultCAConfig()
 func DefaultCAConfig() *CAConfig {
 	return &CAConfig{
 		Country:            []string{"US"},
@@ -102,7 +110,21 @@ func DefaultCAConfig() *CAConfig {
 	}
 }
 
-// NewCA creates and initializes a new Certificate Authority
+// NewCA creates and initializes a new Certificate Authority using the provided configuration.
+// If config is nil, DefaultCAConfig is used.
+// Returns a CA instance or an error if initialization fails.
+// Example:
+//
+//	ca, err := ca.NewCA(nil)
+//	if err != nil { log.Fatal(err) }
+//
+// NewCA creates and initializes a new Certificate Authority using the provided configuration.
+// If config is nil, DefaultCAConfig is used.
+// Returns a CA instance or an error if initialization fails.
+// Example:
+//
+//	ca, err := ca.NewCA(nil)
+//	if err != nil { log.Fatal(err) }
 func NewCA(config *CAConfig) (*CA, error) {
 	if config == nil {
 		config = DefaultCAConfig()
@@ -133,6 +155,8 @@ func NewCA(config *CAConfig) (*CA, error) {
 }
 
 // initialize sets up the CA certificate and private key
+// initialize sets up the CA certificate and private key.
+// Loads from disk if persistence is enabled, otherwise generates a new CA.
 func (ca *CA) initialize(config *CAConfig) error {
 	// Try to load existing CA from disk if persistence is enabled
 	if ca.persistDir != "" {
@@ -200,12 +224,14 @@ func (ca *CA) initialize(config *CAConfig) error {
 	return nil
 }
 
-// Certificate returns the CA certificate
+// Certificate returns the root CA certificate as an *x509.Certificate.
+// Certificate returns the root CA certificate as an *x509.Certificate.
 func (ca *CA) Certificate() *x509.Certificate {
 	return ca.cert
 }
 
-// CertificatePEM returns the CA certificate in PEM format
+// CertificatePEM returns the root CA certificate in PEM-encoded format.
+// CertificatePEM returns the root CA certificate in PEM-encoded format.
 func (ca *CA) CertificatePEM() []byte {
 	return pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
@@ -213,7 +239,8 @@ func (ca *CA) CertificatePEM() []byte {
 	})
 }
 
-// PrivateKeyPEM returns the CA private key in PEM format
+// PrivateKeyPEM returns the CA's private key in PEM-encoded format.
+// PrivateKeyPEM returns the CA's private key in PEM-encoded format.
 func (ca *CA) PrivateKeyPEM() []byte {
 	ca.mutex.RLock()
 	defer ca.mutex.RUnlock()
@@ -224,7 +251,17 @@ func (ca *CA) PrivateKeyPEM() []byte {
 	})
 }
 
-// IssueServiceCertificate generates a certificate for a service based on the request
+// IssueServiceCertificate issues a new certificate for the given service request.
+// Returns a CertResponse containing the certificate, private key, and CA certificate.
+// Example:
+//
+//	resp, err := ca.IssueServiceCertificate(ca.CertRequest{ServiceName: "api", Domains: []string{"api.local"}})
+//
+// IssueServiceCertificate issues a new certificate for the given service request.
+// Returns a CertResponse containing the certificate, private key, and CA certificate.
+// Example:
+//
+//	resp, err := ca.IssueServiceCertificate(ca.CertRequest{ServiceName: "api", Domains: []string{"api.local"}})
 func (ca *CA) IssueServiceCertificate(req CertRequest) (*CertResponse, error) {
 	certPEM, keyPEM, err := ca.GenerateCertificate(req.ServiceName, req.ServiceIP, req.Domains)
 	if err != nil {
@@ -240,13 +277,17 @@ func (ca *CA) IssueServiceCertificate(req CertRequest) (*CertResponse, error) {
 	}, nil
 }
 
-// GenerateCertificate creates a new certificate for a service with the specified domains
+// GenerateCertificate generates a certificate and private key for the specified service and domains.
+// Returns PEM-encoded certificate, private key, and error if any.
+// GenerateCertificate generates a certificate and private key for the specified service and domains.
+// Returns PEM-encoded certificate, private key, and error if any.
 func (ca *CA) GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error) {
 	// Delegate to storage for thread-safe generation and storage
 	return ca.storage.GenerateAndStore(ca, serviceName, serviceIP, domains)
 }
 
-// GetIssuedCertificates returns all issued certificates
+// GetIssuedCertificates returns a slice of all certificates issued by this CA.
+// GetIssuedCertificates returns a slice of all certificates issued by this CA.
 func (ca *CA) GetIssuedCertificates() []*IssuedCert {
 	certs, err := ca.storage.GetAll()
 	if err != nil {
@@ -256,7 +297,10 @@ func (ca *CA) GetIssuedCertificates() []*IssuedCert {
 	return certs
 }
 
-// GetCertificateBySerial returns a certificate by its serial number
+// GetCertificateBySerial returns the issued certificate matching the given serial number.
+// Returns the certificate and a boolean indicating if it was found.
+// GetCertificateBySerial returns the issued certificate matching the given serial number.
+// Returns the certificate and a boolean indicating if it was found.
 func (ca *CA) GetCertificateBySerial(serial string) (*IssuedCert, bool) {
 	cert, err := ca.storage.GetBySerial(serial)
 	if err != nil {
@@ -265,7 +309,8 @@ func (ca *CA) GetCertificateBySerial(serial string) (*IssuedCert, bool) {
 	return cert, cert != nil
 }
 
-// GetCertificateCount returns the number of issued certificates
+// GetCertificateCount returns the total number of certificates issued by this CA.
+// GetCertificateCount returns the total number of certificates issued by this CA.
 func (ca *CA) GetCertificateCount() int {
 	count, err := ca.storage.Count()
 	if err != nil {
@@ -274,7 +319,8 @@ func (ca *CA) GetCertificateCount() int {
 	return count
 }
 
-// GetCAInfo returns information about the CA certificate
+// GetCAInfo returns a map containing metadata about the CA, such as subject and validity.
+// GetCAInfo returns a map containing metadata about the CA, such as subject and validity.
 func (ca *CA) GetCAInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"subject":     ca.cert.Subject.CommonName,
@@ -284,7 +330,10 @@ func (ca *CA) GetCAInfo() map[string]interface{} {
 	}
 }
 
-// ParseCertRequest parses a JSON certificate request
+// ParseCertRequest parses a certificate request from JSON-encoded data.
+// Returns a CertRequest and error if parsing fails.
+// ParseCertRequest parses a certificate request from JSON-encoded data.
+// Returns a CertRequest and error if parsing fails.
 func ParseCertRequest(data []byte) (*CertRequest, error) {
 	var req CertRequest
 	if err := json.Unmarshal(data, &req); err != nil {
@@ -303,12 +352,17 @@ func ParseCertRequest(data []byte) (*CertRequest, error) {
 	return &req, nil
 }
 
-// MarshalCertResponse converts a certificate response to JSON
+// MarshalCertResponse marshals a CertResponse to JSON-encoded bytes.
+// Returns the encoded bytes and error if marshaling fails.
+// MarshalCertResponse marshals a CertResponse to JSON-encoded bytes.
+// Returns the encoded bytes and error if marshaling fails.
 func MarshalCertResponse(resp *CertResponse) ([]byte, error) {
 	return json.Marshal(resp)
 }
 
 // saveCAKeyToDisk saves the CA certificate and private key to disk
+// saveCAKeyToDisk saves the CA certificate and private key to disk.
+// No-op if persistence is not enabled.
 func (ca *CA) saveCAKeyToDisk() error {
 	if ca.persistDir == "" {
 		return nil // RAM-only mode
@@ -340,6 +394,8 @@ func (ca *CA) saveCAKeyToDisk() error {
 }
 
 // loadCAFromDisk loads the CA certificate and private key from disk
+// loadCAFromDisk loads the CA certificate and private key from disk.
+// No-op if persistence is not enabled.
 func (ca *CA) loadCAFromDisk() error {
 	if ca.persistDir == "" {
 		return nil // RAM-only mode

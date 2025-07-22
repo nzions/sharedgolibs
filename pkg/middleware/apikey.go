@@ -5,8 +5,8 @@ package middleware
 import "net/http"
 
 // WithAPIKey adds API key authentication to HTTP handlers.
-// It checks for the API key in the X-API-Key header or api_key query parameter.
-// If the key doesn't match, it returns HTTP 401 Unauthorized.
+// Checks for the API key in the X-API-Key header or api_key query parameter.
+// Returns HTTP 401 Unauthorized if the key does not match.
 func WithAPIKey(key string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip API key check if no key is configured
