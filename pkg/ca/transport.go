@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/nzions/sharedgolibs/pkg/util"
 	"google.golang.org/grpc"
@@ -21,6 +23,12 @@ import (
 var (
 	// ErrNoCAURL is returned when SGL_CA environment variable is not set
 	ErrNoCAURL = fmt.Errorf("SGL_CA environment variable not set")
+
+	// ErrInvalidCAURL is returned when SGL_CA environment variable is not a valid URL
+	ErrInvalidCAURL = fmt.Errorf("SGL_CA environment variable is not a valid URL")
+
+	// ErrUnsupportedScheme is returned when SGL_CA URL uses an unsupported scheme
+	ErrUnsupportedScheme = fmt.Errorf("SGL_CA URL must use http or https scheme")
 
 	// ErrCARequest is returned when the HTTP request to the CA server fails
 	ErrCARequest = fmt.Errorf("failed to request CA certificate")
@@ -35,13 +43,48 @@ var (
 	ErrUnauthorized = fmt.Errorf("unauthorized: invalid or missing API key")
 )
 
+// validateCAURL validates that the CA URL is properly formatted
+func validateCAURL(caURL string) error {
+	if caURL == "" {
+		return ErrNoCAURL
+	}
+
+	// Parse the URL to validate format
+	parsedURL, err := url.Parse(caURL)
+	if err != nil {
+		return fmt.Errorf("%w: %v (URL: %q)", ErrInvalidCAURL, err, caURL)
+	}
+
+	// Check that scheme is http or https
+	scheme := strings.ToLower(parsedURL.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("%w: got %q, expected http or https (URL: %q)", ErrUnsupportedScheme, parsedURL.Scheme, caURL)
+	}
+
+	// Check that host is present
+	if parsedURL.Host == "" {
+		return fmt.Errorf("%w: missing host (URL: %q)", ErrInvalidCAURL, caURL)
+	}
+
+	return nil
+}
+
+// getValidatedCAURL gets the CA URL from environment and validates it
+func getValidatedCAURL() (string, error) {
+	caURL := util.MustGetEnv("SGL_CA", "")
+	if err := validateCAURL(caURL); err != nil {
+		return "", err
+	}
+	return caURL, nil
+}
+
 // UpdateTransport configures the default HTTP client to trust a CA certificate.
 // Uses the SGL_CA environment variable to determine the CA server URL.
 // Optionally uses SGL_CA_API_KEY environment variable for authentication.
 func UpdateTransport() error {
-	caURL := util.MustGetEnv("SGL_CA", "")
-	if caURL == "" {
-		return ErrNoCAURL
+	caURL, err := getValidatedCAURL()
+	if err != nil {
+		return err
 	}
 
 	// Create request with optional API key
@@ -99,17 +142,20 @@ func UpdateTransport() error {
 		},
 	}
 
-	// Replace the default HTTP client's transport
+	// Replace BOTH the default HTTP client's transport AND the default transport
+	// This ensures that both direct usage of http.DefaultClient and libraries that
+	// create clients based on http.DefaultTransport will trust our CA
 	http.DefaultClient.Transport = transport
+	http.DefaultTransport = transport
 
 	return nil
 }
 
 // RequestCertificate requests a certificate from the CA server for the given service
 func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error) {
-	caURL := util.MustGetEnv("SGL_CA", "")
-	if caURL == "" {
-		return nil, ErrNoCAURL
+	caURL, err := getValidatedCAURL()
+	if err != nil {
+		return nil, err
 	}
 
 	// Create certificate request
@@ -217,9 +263,9 @@ func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string, opt
 // CreateGRPCCredentials returns gRPC TLS credentials using CA certificates.
 // This is a convenience method for clients that need to connect to gRPC servers with CA-issued certificates.
 func CreateGRPCCredentials() (credentials.TransportCredentials, error) {
-	caURL := util.MustGetEnv("SGL_CA", "")
-	if caURL == "" {
-		return nil, ErrNoCAURL
+	caURL, err := getValidatedCAURL()
+	if err != nil {
+		return nil, err
 	}
 
 	// Create request to get CA certificate
