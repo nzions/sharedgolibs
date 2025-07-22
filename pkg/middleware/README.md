@@ -241,4 +241,4 @@ This package uses only Go standard library dependencies:
 
 ## License
 
-This work is dedicated to the public domain under [CC0 1.0 Universal](../../LICENSE).
+This work is licensed under [CC0 1.0 Universal](../../LICENSE).
