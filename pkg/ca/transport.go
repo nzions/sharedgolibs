@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -87,6 +88,31 @@ func UpdateTransport() error {
 		return err
 	}
 
+	return updateTransportWithCA(caURL)
+}
+
+// UpdateTransportOnlyIf configures the default HTTP client to trust a CA certificate
+// only if the SGL_CA environment variable is set. If SGL_CA is not set, this function
+// returns nil without error. If SGL_CA is set but the CA cannot be reached or configured,
+// it returns an error.
+func UpdateTransportOnlyIf() error {
+	caURL := util.MustGetEnv("SGL_CA", "")
+	if caURL == "" {
+		// SGL_CA is not set, do nothing
+		return nil
+	}
+
+	// Validate the URL since it's set
+	if err := validateCAURL(caURL); err != nil {
+		return err
+	}
+
+	slog.Info("Updating HTTP transport to trust CA", "url", caURL)
+	return updateTransportWithCA(caURL)
+}
+
+// updateTransportWithCA handles the actual transport update logic
+func updateTransportWithCA(caURL string) error {
 	// Create request with optional API key
 	req, err := http.NewRequest("GET", caURL+"/ca", nil)
 	if err != nil {

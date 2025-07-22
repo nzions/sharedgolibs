@@ -4,7 +4,7 @@
 
 The CA package provides comprehensive Certificate Authority functionality for development and testing environments, enabling dynamic certificate issuance, persistent storage, thread-safe operations, gRPC support, and HTTP transport integration.
 
-## Version: v1.1.0
+## Version: v1.4.0
 
 ## Features
 
@@ -138,6 +138,39 @@ func main() {
     resp, err := client.Get("https://my-service.local")
     if err != nil {
         log.Fatal(err)
+    }
+    defer resp.Body.Close()
+    
+    log.Printf("Response status: %s", resp.Status)
+}
+```
+
+### Optional Transport Setup
+
+```go
+package main
+
+import (
+    "log"
+    "net/http"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    // Only configure CA transport if SGL_CA is set
+    // No error if environment variables are not configured
+    err := ca.UpdateTransportOnlyIf()
+    if err != nil {
+        log.Printf("Failed to configure CA transport: %v", err)
+        // Continue without CA - will use system certificates
+    }
+
+    // This works whether CA is configured or not
+    client := &http.Client{}
+    resp, err := client.Get("https://my-service.local")
+    if err != nil {
+        log.Printf("Request failed: %v", err)
+        return
     }
     defer resp.Body.Close()
     
@@ -314,7 +347,14 @@ Update default HTTP transport to trust CA certificates:
 ```go
 func UpdateTransport() error
 ```
-Uses environment variables: `SGL_CA`, `SGL_CA_API_KEY`, `SGL_CA_CERT_PATH`
+Uses environment variables: `SGL_CA`, `SGL_CA_API_KEY`, `SGL_CA_CERT_PATH`. Returns error if `SGL_CA` is not set.
+
+#### UpdateTransportOnlyIf
+Conditionally update default HTTP transport to trust CA certificates:
+```go
+func UpdateTransportOnlyIf() error
+```
+Only updates transport if `SGL_CA` environment variable is set. Returns `nil` without error if `SGL_CA` is not set. Returns error if `SGL_CA` is set but CA cannot be configured.
 
 #### SetupFromCAFile
 Setup HTTP transport from CA file:

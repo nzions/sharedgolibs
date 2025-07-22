@@ -8,7 +8,7 @@ This work is dedicated to the public domain under [CC0 1.0 Universal](LICENSE).
 
 ## Packages
 
-### 🔐 pkg/ca (v1.1.0)
+### 🔐 Certificate Authority (ca) - v1.4.0
 Complete Certificate Authority implementation with dynamic certificate issuance, persistent storage, thread-safe operations, gRPC support, and HTTP transport integration.
 
 **Key Features:**
@@ -19,9 +19,10 @@ Complete Certificate Authority implementation with dynamic certificate issuance,
 - REST API for programmatic access
 - gRPC server and client support
 - HTTP transport monkey-patching for zero-code-change integration
+- Optional transport configuration with `UpdateTransportOnlyIf()`
 - Environment-driven configuration
 
-### 🌐 pkg/middleware (v0.2.0)
+### 🌐 pkg/middleware (v0.3.0)
 HTTP middleware for CORS, logging, Google metadata flavor headers, API key authentication, and request handling.
 
 **Key Features:**

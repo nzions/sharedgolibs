@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestUpdateTransport(t *testing.T) {
@@ -476,9 +477,11 @@ func TestCreateSecureHTTPSServer(t *testing.T) {
 			if !tt.wantError {
 				if httpsServer == nil {
 					t.Error("HTTPS server is nil")
+					return
 				}
 				if httpsServer.TLSConfig == nil {
 					t.Error("TLS config is nil")
+					return
 				}
 				if len(httpsServer.TLSConfig.Certificates) == 0 {
 					t.Error("No TLS certificates configured")
@@ -623,4 +626,151 @@ func TestTransportConvenienceMethodsIntegration(t *testing.T) {
 			t.Fatal("No TLS certificates configured")
 		}
 	})
+}
+
+func TestUpdateTransportOnlyIf(t *testing.T) {
+	tests := []struct {
+		name       string
+		setupEnv   func()
+		wantError  bool
+		wantLogMsg bool
+	}{
+		{
+			name: "No SGL_CA environment variable set",
+			setupEnv: func() {
+				os.Unsetenv("SGL_CA")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:  false,
+			wantLogMsg: false,
+		},
+		{
+			name: "Invalid SGL_CA URL",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "invalid-url")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:  true,
+			wantLogMsg: false,
+		},
+		{
+			name: "Valid SGL_CA but unreachable server",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "http://localhost:9999")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:  true,
+			wantLogMsg: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup environment
+			tt.setupEnv()
+			defer func() {
+				os.Unsetenv("SGL_CA")
+				os.Unsetenv("SGL_CA_API_KEY")
+			}()
+
+			// Call UpdateTransportOnlyIf
+			err := UpdateTransportOnlyIf()
+
+			// Check error expectation
+			if (err != nil) != tt.wantError {
+				t.Errorf("UpdateTransportOnlyIf() error = %v, wantError %v", err, tt.wantError)
+			}
+
+			// For the successful case (no SGL_CA), verify no error
+			if !tt.wantError && err != nil {
+				t.Errorf("UpdateTransportOnlyIf() should not error when SGL_CA is not set, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestUpdateTransportOnlyIfWithRealServer(t *testing.T) {
+	// Start a test CA server
+	server, err := NewServer(&ServerConfig{
+		Port:     "18091",
+		CAConfig: DefaultCAConfig(),
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test server: %v", err)
+	}
+
+	// Start server in background
+	serverDone := make(chan error, 1)
+	go func() {
+		serverDone <- server.Start()
+	}()
+
+	// Wait for server to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Test with valid server
+	t.Run("Valid SGL_CA with running server", func(t *testing.T) {
+		os.Setenv("SGL_CA", "http://localhost:18091")
+		defer os.Unsetenv("SGL_CA")
+
+		err := UpdateTransportOnlyIf()
+		if err != nil {
+			t.Errorf("UpdateTransportOnlyIf() with valid server should not error, got: %v", err)
+		}
+	})
+}
+
+func TestGetServiceCertificate(t *testing.T) {
+	tests := []struct {
+		name        string
+		serviceName string
+		serviceIP   string
+		domains     []string
+		wantError   bool
+	}{
+		{
+			name:        "Valid certificate request to unreachable server",
+			serviceName: "test-client-service",
+			serviceIP:   "192.168.1.100", 
+			domains:     []string{"client.test.local"},
+			wantError:   true, // Expected to fail because default server isn't running
+		},
+		{
+			name:        "Empty service name",
+			serviceName: "",
+			serviceIP:   "192.168.1.100",
+			domains:     []string{"test.local"},
+			wantError:   true,
+		},
+		{
+			name:        "Empty domains",
+			serviceName: "test-service",
+			serviceIP:   "192.168.1.100",
+			domains:     []string{},
+			wantError:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// GetServiceCertificate uses hardcoded localhost:8090
+			resp, err := GetServiceCertificate(tt.serviceName, tt.serviceIP, tt.domains)
+
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("GetServiceCertificate() expected error but got none")
+				}
+				if resp != nil {
+					t.Errorf("GetServiceCertificate() expected nil response on error")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("GetServiceCertificate() unexpected error: %v", err)
+				}
+				if resp == nil {
+					t.Errorf("GetServiceCertificate() returned nil response without error")
+				}
+			}
+		})
+	}
 }

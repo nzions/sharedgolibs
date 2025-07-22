@@ -1,0 +1,2598 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>ca: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/nzions/sharedgolibs/pkg/ca/authority.go (79.1%)</option>
+				
+				<option value="file1">github.com/nzions/sharedgolibs/pkg/ca/client.go (0.0%)</option>
+				
+				<option value="file2">github.com/nzions/sharedgolibs/pkg/ca/gui.go (15.8%)</option>
+				
+				<option value="file3">github.com/nzions/sharedgolibs/pkg/ca/server.go (35.7%)</option>
+				
+				<option value="file4">github.com/nzions/sharedgolibs/pkg/ca/storage.go (85.5%)</option>
+				
+				<option value="file5">github.com/nzions/sharedgolibs/pkg/ca/transport.go (54.3%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Package ca provides Certificate Authority functionality
+// Provides dynamic certificate issuance for services and applications
+// Acts like Let's Encrypt for development and testing environments
+// Version: 1.0.0
+package ca
+
+import (
+        "crypto/rand"
+        "crypto/rsa"
+        "crypto/x509"
+        "crypto/x509/pkix"
+        "encoding/json"
+        "encoding/pem"
+        "fmt"
+        "math/big"
+        "os"
+        "path/filepath"
+        "sync"
+        "time"
+)
+
+const (
+        Version = "v1.4.0"
+)
+
+// CA represents a Certificate Authority with the ability to issue certificates
+type CA struct {
+        cert       *x509.Certificate
+        privateKey *rsa.PrivateKey
+        storage    CertStorage
+        mutex      sync.RWMutex // Protects CA certificate and private key
+        persistDir string       // Directory for CA persistence (empty = RAM only)
+}
+
+// IssuedCert represents a certificate that has been issued by the CA
+type IssuedCert struct {
+        ServiceName  string    `json:"service_name"`
+        Domains      []string  `json:"domains"`
+        IssuedAt     time.Time `json:"issued_at"`
+        ExpiresAt    time.Time `json:"expires_at"`
+        Certificate  string    `json:"certificate"`
+        PrivateKey   string    `json:"private_key,omitempty"` // Optional for security
+        SerialNumber string    `json:"serial_number"`
+}
+
+// CertRequest represents a request for a new certificate
+type CertRequest struct {
+        ServiceName string   `json:"service_name"`
+        ServiceIP   string   `json:"service_ip"`
+        Domains     []string `json:"domains"`
+}
+
+// CertResponse represents the response containing the issued certificate
+type CertResponse struct {
+        Certificate string `json:"certificate"`
+        PrivateKey  string `json:"private_key"`
+        CACert      string `json:"ca_cert"`
+}
+
+// CAConfig holds configuration options for creating a new CA
+type CAConfig struct {
+        // Organization details for the CA certificate
+        Country            []string
+        Province           []string
+        Locality           []string
+        Organization       []string
+        OrganizationalUnit []string
+        CommonName         string
+
+        // Certificate validity period
+        ValidityPeriod time.Duration
+
+        // Key size for CA private key (default: 4096)
+        KeySize int
+
+        // Directory to persist CA data (empty = RAM only)
+        PersistDir string
+}
+
+// HTTPTransportSettings configures the global HTTP transport
+type HTTPTransportSettings struct {
+        Timeout               time.Duration
+        KeepAlive             time.Duration
+        MaxIdleConns          int
+        IdleConnTimeout       time.Duration
+        TLSHandshakeTimeout   time.Duration
+        ExpectContinueTimeout time.Duration
+}
+
+// DefaultCAConfig returns sensible defaults for CA configuration
+func DefaultCAConfig() *CAConfig <span class="cov8" title="1">{
+        return &amp;CAConfig{
+                Country:            []string{"US"},
+                Province:           []string{"Local"},
+                Locality:           []string{"Local"},
+                Organization:       []string{"SharedGoLibs Development"},
+                OrganizationalUnit: []string{"CA"},
+                CommonName:         "SharedGoLibs Root CA",
+                ValidityPeriod:     365 * 24 * time.Hour, // 1 year
+                KeySize:            4096,
+                PersistDir:         "", // RAM only by default
+        }
+}</span>
+
+// NewCA creates and initializes a new Certificate Authority
+func NewCA(config *CAConfig) (*CA, error) <span class="cov8" title="1">{
+        if config == nil </span><span class="cov8" title="1">{
+                config = DefaultCAConfig()
+        }</span>
+
+        <span class="cov8" title="1">ca := &amp;CA{
+                persistDir: config.PersistDir,
+        }
+
+        // Initialize storage based on configuration
+        var err error
+        if config.PersistDir != "" </span><span class="cov8" title="1">{
+                ca.storage, err = NewDiskStorage(config.PersistDir)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, fmt.Errorf("failed to initialize disk storage: %w", err)
+                }</span>
+                <span class="cov8" title="1">fmt.Printf("[ca] Using disk storage: %s\n", config.PersistDir)</span>
+        } else<span class="cov8" title="1"> {
+                ca.storage = NewRAMStorage()
+                fmt.Printf("[ca] Using RAM-only storage\n")
+        }</span>
+
+        <span class="cov8" title="1">if err := ca.initialize(config); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to initialize CA: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return ca, nil</span>
+}
+
+// initialize sets up the CA certificate and private key
+func (ca *CA) initialize(config *CAConfig) error <span class="cov8" title="1">{
+        // Try to load existing CA from disk if persistence is enabled
+        if ca.persistDir != "" </span><span class="cov8" title="1">{
+                if err := ca.loadCAFromDisk(); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to load CA from disk: %w", err)
+                }</span>
+        }
+
+        // If we loaded an existing CA, we're done
+        <span class="cov8" title="1">if ca.cert != nil &amp;&amp; ca.privateKey != nil </span><span class="cov8" title="1">{
+                fmt.Printf("[ca] Loaded existing CA from disk\n")
+                return nil
+        }</span>
+
+        // Generate new CA private key
+        <span class="cov8" title="1">var err error
+        ca.privateKey, err = rsa.GenerateKey(rand.Reader, config.KeySize)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to generate CA private key: %w", err)
+        }</span>
+
+        // Create CA certificate template
+        <span class="cov8" title="1">template := x509.Certificate{
+                SerialNumber: big.NewInt(1),
+                Subject: pkix.Name{
+                        Country:            config.Country,
+                        Province:           config.Province,
+                        Locality:           config.Locality,
+                        Organization:       config.Organization,
+                        OrganizationalUnit: config.OrganizationalUnit,
+                        CommonName:         config.CommonName,
+                },
+                NotBefore:             time.Now(),
+                NotAfter:              time.Now().Add(config.ValidityPeriod),
+                KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+                BasicConstraintsValid: true,
+                IsCA:                  true,
+                MaxPathLen:            0,
+                MaxPathLenZero:        true,
+        }
+
+        // Create CA certificate
+        certDER, err := x509.CreateCertificate(rand.Reader, &amp;template, &amp;template, &amp;ca.privateKey.PublicKey, ca.privateKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create CA certificate: %w", err)
+        }</span>
+
+        // Parse CA certificate
+        <span class="cov8" title="1">ca.cert, err = x509.ParseCertificate(certDER)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to parse CA certificate: %w", err)
+        }</span>
+
+        // Save the newly created CA to disk
+        <span class="cov8" title="1">if err := ca.saveCAKeyToDisk(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to save CA to disk: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if ca.persistDir != "" </span><span class="cov8" title="1">{
+                fmt.Printf("[ca] Created and saved new CA to disk\n")
+        }</span> else<span class="cov8" title="1"> {
+                fmt.Printf("[ca] Created new CA (RAM only)\n")
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Certificate returns the CA certificate
+func (ca *CA) Certificate() *x509.Certificate <span class="cov8" title="1">{
+        return ca.cert
+}</span>
+
+// CertificatePEM returns the CA certificate in PEM format
+func (ca *CA) CertificatePEM() []byte <span class="cov8" title="1">{
+        return pem.EncodeToMemory(&amp;pem.Block{
+                Type:  "CERTIFICATE",
+                Bytes: ca.cert.Raw,
+        })
+}</span>
+
+// PrivateKeyPEM returns the CA private key in PEM format
+func (ca *CA) PrivateKeyPEM() []byte <span class="cov0" title="0">{
+        ca.mutex.RLock()
+        defer ca.mutex.RUnlock()
+
+        return pem.EncodeToMemory(&amp;pem.Block{
+                Type:  "RSA PRIVATE KEY",
+                Bytes: x509.MarshalPKCS1PrivateKey(ca.privateKey),
+        })
+}</span>
+
+// IssueServiceCertificate generates a certificate for a service based on the request
+func (ca *CA) IssueServiceCertificate(req CertRequest) (*CertResponse, error) <span class="cov8" title="1">{
+        certPEM, keyPEM, err := ca.GenerateCertificate(req.ServiceName, req.ServiceIP, req.Domains)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to generate certificate: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">caCertPEM := ca.CertificatePEM()
+
+        return &amp;CertResponse{
+                Certificate: certPEM,
+                PrivateKey:  keyPEM,
+                CACert:      string(caCertPEM),
+        }, nil</span>
+}
+
+// GenerateCertificate creates a new certificate for a service with the specified domains
+func (ca *CA) GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error) <span class="cov8" title="1">{
+        // Delegate to storage for thread-safe generation and storage
+        return ca.storage.GenerateAndStore(ca, serviceName, serviceIP, domains)
+}</span>
+
+// GetIssuedCertificates returns all issued certificates
+func (ca *CA) GetIssuedCertificates() []*IssuedCert <span class="cov8" title="1">{
+        certs, err := ca.storage.GetAll()
+        if err != nil </span><span class="cov0" title="0">{
+                // Log error but return empty slice to maintain API compatibility
+                return []*IssuedCert{}
+        }</span>
+        <span class="cov8" title="1">return certs</span>
+}
+
+// GetCertificateBySerial returns a certificate by its serial number
+func (ca *CA) GetCertificateBySerial(serial string) (*IssuedCert, bool) <span class="cov8" title="1">{
+        cert, err := ca.storage.GetBySerial(serial)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, false
+        }</span>
+        <span class="cov8" title="1">return cert, cert != nil</span>
+}
+
+// GetCertificateCount returns the number of issued certificates
+func (ca *CA) GetCertificateCount() int <span class="cov8" title="1">{
+        count, err := ca.storage.Count()
+        if err != nil </span><span class="cov0" title="0">{
+                return 0
+        }</span>
+        <span class="cov8" title="1">return count</span>
+}
+
+// GetCAInfo returns information about the CA certificate
+func (ca *CA) GetCAInfo() map[string]interface{} <span class="cov8" title="1">{
+        return map[string]interface{}{
+                "subject":     ca.cert.Subject.CommonName,
+                "valid_until": ca.cert.NotAfter.Format(time.RFC3339),
+                "issued_at":   ca.cert.NotBefore.Format(time.RFC3339),
+                "serial":      ca.cert.SerialNumber.String(),
+        }
+}</span>
+
+// ParseCertRequest parses a JSON certificate request
+func ParseCertRequest(data []byte) (*CertRequest, error) <span class="cov8" title="1">{
+        var req CertRequest
+        if err := json.Unmarshal(data, &amp;req); err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to parse certificate request: %w", err)
+        }</span>
+
+        // Validate required fields
+        <span class="cov8" title="1">if req.ServiceName == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("service_name is required")
+        }</span>
+
+        <span class="cov8" title="1">if len(req.Domains) == 0 </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("domains are required")
+        }</span>
+
+        <span class="cov8" title="1">return &amp;req, nil</span>
+}
+
+// MarshalCertResponse converts a certificate response to JSON
+func MarshalCertResponse(resp *CertResponse) ([]byte, error) <span class="cov8" title="1">{
+        return json.Marshal(resp)
+}</span>
+
+// saveCAKeyToDisk saves the CA certificate and private key to disk
+func (ca *CA) saveCAKeyToDisk() error <span class="cov8" title="1">{
+        if ca.persistDir == "" </span><span class="cov8" title="1">{
+                return nil // RAM-only mode
+        }</span>
+
+        // Create directory if it doesn't exist
+        <span class="cov8" title="1">if err := os.MkdirAll(ca.persistDir, 0755); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create persist directory %s: %w", ca.persistDir, err)
+        }</span>
+
+        // Save CA certificate
+        <span class="cov8" title="1">caCertPath := filepath.Join(ca.persistDir, "ca-cert.pem")
+        caCertPEM := ca.CertificatePEM()
+        if err := os.WriteFile(caCertPath, caCertPEM, 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to save CA certificate: %w", err)
+        }</span>
+
+        // Save CA private key
+        <span class="cov8" title="1">caKeyPath := filepath.Join(ca.persistDir, "ca-key.pem")
+        caKeyPEM := pem.EncodeToMemory(&amp;pem.Block{
+                Type:  "RSA PRIVATE KEY",
+                Bytes: x509.MarshalPKCS1PrivateKey(ca.privateKey),
+        })
+        if err := os.WriteFile(caKeyPath, caKeyPEM, 0600); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to save CA private key: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// loadCAFromDisk loads the CA certificate and private key from disk
+func (ca *CA) loadCAFromDisk() error <span class="cov8" title="1">{
+        if ca.persistDir == "" </span><span class="cov0" title="0">{
+                return nil // RAM-only mode
+        }</span>
+
+        <span class="cov8" title="1">caCertPath := filepath.Join(ca.persistDir, "ca-cert.pem")
+        caKeyPath := filepath.Join(ca.persistDir, "ca-key.pem")
+
+        // Check if both files exist
+        if _, err := os.Stat(caCertPath); os.IsNotExist(err) </span><span class="cov8" title="1">{
+                return nil // No existing CA to load
+        }</span>
+        <span class="cov8" title="1">if _, err := os.Stat(caKeyPath); os.IsNotExist(err) </span><span class="cov0" title="0">{
+                return nil // No existing CA to load
+        }</span>
+
+        // Load certificate
+        <span class="cov8" title="1">certPEM, err := os.ReadFile(caCertPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read CA certificate: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">certBlock, _ := pem.Decode(certPEM)
+        if certBlock == nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to decode CA certificate PEM")
+        }</span>
+
+        <span class="cov8" title="1">cert, err := x509.ParseCertificate(certBlock.Bytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to parse CA certificate: %w", err)
+        }</span>
+
+        // Load private key
+        <span class="cov8" title="1">keyPEM, err := os.ReadFile(caKeyPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read CA private key: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">keyBlock, _ := pem.Decode(keyPEM)
+        if keyBlock == nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to decode CA private key PEM")
+        }</span>
+
+        <span class="cov8" title="1">privateKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to parse CA private key: %w", err)
+        }</span>
+
+        // Set the loaded certificate and key
+        <span class="cov8" title="1">ca.mutex.Lock()
+        ca.cert = cert
+        ca.privateKey = privateKey
+        ca.mutex.Unlock()
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package ca provides Certificate Authority client functionality
+package ca
+
+import (
+        "bytes"
+        "encoding/json"
+        "fmt"
+        "net/http"
+        "time"
+)
+
+// GetServiceCertificate requests a certificate from a CA server
+// This is a client function that makes HTTP requests to a CA daemon
+func GetServiceCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error) <span class="cov0" title="0">{
+        // Default CA daemon address
+        caURL := "http://localhost:8090/cert"
+
+        // Create certificate request
+        req := CertRequest{
+                ServiceName: serviceName,
+                ServiceIP:   serviceIP,
+                Domains:     domains,
+        }
+
+        // Marshal request to JSON
+        jsonData, err := json.Marshal(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to marshal request: %w", err)
+        }</span>
+
+        // Create HTTP request
+        <span class="cov0" title="0">httpReq, err := http.NewRequest("POST", caURL, bytes.NewBuffer(jsonData))
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+        }</span>
+        <span class="cov0" title="0">httpReq.Header.Set("Content-Type", "application/json")
+
+        // Make request with timeout
+        client := &amp;http.Client{
+                Timeout: 10 * time.Second,
+        }
+
+        resp, err := client.Do(httpReq)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to request certificate from CA: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        // Check response status
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("CA returned status %d", resp.StatusCode)
+        }</span>
+
+        // Parse response
+        <span class="cov0" title="0">var certResp CertResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;certResp); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse certificate response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return &amp;certResp, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package ca
+
+import (
+        "embed"
+        "fmt"
+        "html/template"
+        "net/http"
+        "sort"
+        "strings"
+        "time"
+)
+
+//go:embed gui/templates/*.html gui/static/*
+var templateFS embed.FS
+
+//go:embed gui/static/*
+var staticFS embed.FS
+
+// GUIHandler handles the web GUI requests
+type GUIHandler struct {
+        ca        *CA
+        templates *template.Template
+        apiKey    string
+}
+
+// CertificateViewModel represents a certificate for the GUI
+type CertificateViewModel struct {
+        *IssuedCert
+        IsExpired      bool
+        IsExpiringSoon bool
+}
+
+// DashboardData holds data for the dashboard template
+type DashboardData struct {
+        Title                string
+        Page                 string
+        Version              string
+        CertCount            int
+        CAValidUntil         string
+        CAValidFrom          string
+        CASerialNumber       string
+        CASubject            string
+        CAKeyAlgorithm       string
+        CASignatureAlgorithm string
+        RecentCerts          []CertificateViewModel
+        AllCerts             []CertificateViewModel
+        RequireAPIKey        bool
+        BaseURL              string
+}
+
+// CertificatesData holds data for the certificates template
+type CertificatesData struct {
+        Title         string
+        Page          string
+        Version       string
+        Certificates  []CertificateViewModel
+        RequireAPIKey bool
+        BaseURL       string
+}
+
+// GenerateData holds data for the generate template
+type GenerateData struct {
+        Title         string
+        Page          string
+        Version       string
+        RequireAPIKey bool
+        BaseURL       string
+}
+
+// APIData holds data for the API documentation template
+type APIData struct {
+        Title         string
+        Page          string
+        Version       string
+        RequireAPIKey bool
+        BaseURL       string
+}
+
+// NewGUIHandler creates a new GUI handler
+func NewGUIHandler(ca *CA, apiKey string) (*GUIHandler, error) <span class="cov8" title="1">{
+        tmpl, err := template.ParseFS(templateFS, "gui/templates/*.html")
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse templates: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return &amp;GUIHandler{
+                ca:        ca,
+                templates: tmpl,
+                apiKey:    apiKey,
+        }, nil</span>
+}
+
+// RequireAPIKey middleware to check API key if configured
+func (g *GUIHandler) RequireAPIKey(next http.HandlerFunc) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                if g.apiKey == "" </span><span class="cov0" title="0">{
+                        // No API key required
+                        next(w, r)
+                        return
+                }</span>
+
+                // Check for API key in header
+                <span class="cov0" title="0">apiKey := r.Header.Get("X-API-Key")
+                if apiKey == "" </span><span class="cov0" title="0">{
+                        // Check for API key in query parameter
+                        apiKey = r.URL.Query().Get("api_key")
+                }</span>
+
+                <span class="cov0" title="0">if apiKey != g.apiKey </span><span class="cov0" title="0">{
+                        http.Error(w, "Unauthorized: Invalid or missing API key", http.StatusUnauthorized)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">next(w, r)</span>
+        }
+}
+
+// HandleDashboard renders the dashboard page
+func (g *GUIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        certs := g.ca.GetIssuedCertificates()
+        allCerts := g.prepareCertificates(certs)
+        recentCerts := allCerts
+
+        // Show only the 5 most recent certificates
+        if len(recentCerts) &gt; 5 </span><span class="cov0" title="0">{
+                recentCerts = recentCerts[:5]
+        }</span>
+
+        <span class="cov8" title="1">caInfo := g.ca.GetCAInfo()
+        caCert := g.ca.Certificate()
+
+        // Determine base URL from request
+        scheme := "http"
+        if r.TLS != nil </span><span class="cov0" title="0">{
+                scheme = "https"
+        }</span>
+        <span class="cov8" title="1">baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
+        data := DashboardData{
+                Title:                "Dashboard",
+                Page:                 "dashboard",
+                Version:              Version,
+                CertCount:            len(certs),
+                CAValidUntil:         caCert.NotAfter.Format("2006-01-02"),
+                CAValidFrom:          caCert.NotBefore.Format("2006-01-02"),
+                CASerialNumber:       caCert.SerialNumber.String(),
+                CASubject:            caCert.Subject.String(),
+                CAKeyAlgorithm:       caCert.PublicKeyAlgorithm.String(),
+                CASignatureAlgorithm: caCert.SignatureAlgorithm.String(),
+                RecentCerts:          recentCerts,
+                AllCerts:             allCerts,
+                RequireAPIKey:        g.apiKey != "",
+                BaseURL:              baseURL,
+        }
+
+        // Add additional CA info from the CA's GetCAInfo method
+        for key, value := range caInfo </span><span class="cov8" title="1">{
+                switch key </span>{
+                case "common_name":<span class="cov0" title="0">
+                        if str, ok := value.(string); ok </span><span class="cov0" title="0">{
+                                data.CASubject = str
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">if err := g.templates.ExecuteTemplate(w, "base.html", data); err != nil </span><span class="cov8" title="1">{
+                http.Error(w, "Internal server error", http.StatusInternalServerError)
+                return
+        }</span>
+}
+
+// HandleCertificates renders the certificates list page
+func (g *GUIHandler) HandleCertificates(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        certs := g.ca.GetIssuedCertificates()
+        certificates := g.prepareCertificates(certs)
+
+        // Determine base URL from request
+        scheme := "http"
+        if r.TLS != nil </span><span class="cov0" title="0">{
+                scheme = "https"
+        }</span>
+        <span class="cov8" title="1">baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
+        data := CertificatesData{
+                Title:         "Certificates",
+                Page:          "certs",
+                Version:       Version,
+                Certificates:  certificates,
+                RequireAPIKey: g.apiKey != "",
+                BaseURL:       baseURL,
+        }
+
+        if err := g.templates.ExecuteTemplate(w, "base.html", data); err != nil </span><span class="cov8" title="1">{
+                http.Error(w, "Internal server error", http.StatusInternalServerError)
+                return
+        }</span>
+}
+
+// HandleGenerate renders the generate certificate page or processes the form
+func (g *GUIHandler) HandleGenerate(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if r.Method == http.MethodGet </span><span class="cov8" title="1">{
+                // Determine base URL from request
+                scheme := "http"
+                if r.TLS != nil </span><span class="cov0" title="0">{
+                        scheme = "https"
+                }</span>
+                <span class="cov8" title="1">baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
+                data := GenerateData{
+                        Title:         "Generate Certificate",
+                        Page:          "generate",
+                        Version:       Version,
+                        RequireAPIKey: g.apiKey != "",
+                        BaseURL:       baseURL,
+                }
+
+                if err := g.templates.ExecuteTemplate(w, "base.html", data); err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "Internal server error", http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">return</span>
+        }
+
+        <span class="cov0" title="0">if r.Method == http.MethodPost </span><span class="cov0" title="0">{
+                g.handleGenerateForm(w, r)
+                return
+        }</span>
+
+        <span class="cov0" title="0">http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)</span>
+}
+
+// HandleAPI renders the API documentation page
+func (g *GUIHandler) HandleAPI(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        // Determine base URL from request
+        <span class="cov0" title="0">scheme := "http"
+        if r.TLS != nil </span><span class="cov0" title="0">{
+                scheme = "https"
+        }</span>
+        <span class="cov0" title="0">baseURL := fmt.Sprintf("%s://%s", scheme, r.Host)
+
+        data := APIData{
+                Title:         "API Documentation",
+                Page:          "api",
+                Version:       Version,
+                RequireAPIKey: g.apiKey != "",
+                BaseURL:       baseURL,
+        }
+
+        if err := g.templates.ExecuteTemplate(w, "base.html", data); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Internal server error", http.StatusInternalServerError)
+                return
+        }</span>
+}
+
+// handleGenerateForm processes the certificate generation form
+func (g *GUIHandler) handleGenerateForm(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        serviceName := strings.TrimSpace(r.FormValue("service_name"))
+        serviceIP := strings.TrimSpace(r.FormValue("service_ip"))
+        domainsText := strings.TrimSpace(r.FormValue("domains"))
+
+        if serviceName == "" || serviceIP == "" || domainsText == "" </span><span class="cov0" title="0">{
+                g.writeHTMLResponse(w, `
+                        &lt;div class="alert alert-error"&gt;
+                                &lt;strong&gt;Error:&lt;/strong&gt; All fields are required.
+                        &lt;/div&gt;
+                `)
+                return
+        }</span>
+
+        // Parse domains from textarea (one per line)
+        <span class="cov0" title="0">domains := []string{}
+        for _, domain := range strings.Split(domainsText, "\n") </span><span class="cov0" title="0">{
+                domain = strings.TrimSpace(domain)
+                if domain != "" </span><span class="cov0" title="0">{
+                        domains = append(domains, domain)
+                }</span>
+        }
+
+        <span class="cov0" title="0">if len(domains) == 0 </span><span class="cov0" title="0">{
+                g.writeHTMLResponse(w, `
+                        &lt;div class="alert alert-error"&gt;
+                                &lt;strong&gt;Error:&lt;/strong&gt; At least one domain is required.
+                        &lt;/div&gt;
+                `)
+                return
+        }</span>
+
+        // Generate certificate
+        <span class="cov0" title="0">certPEM, keyPEM, err := g.ca.GenerateCertificate(serviceName, serviceIP, domains)
+        if err != nil </span><span class="cov0" title="0">{
+                g.writeHTMLResponse(w, fmt.Sprintf(`
+                        &lt;div class="alert alert-error"&gt;
+                                &lt;strong&gt;Error:&lt;/strong&gt; Failed to generate certificate: %v
+                        &lt;/div&gt;
+                `, err))
+                return
+        }</span>
+
+        // Success response with certificate details
+        <span class="cov0" title="0">html := fmt.Sprintf(`
+                &lt;div class="alert alert-success"&gt;
+                        &lt;strong&gt;Success!&lt;/strong&gt; Certificate generated successfully for &lt;strong&gt;%s&lt;/strong&gt;.
+                &lt;/div&gt;
+                
+                &lt;div class="card"&gt;
+                        &lt;h3&gt;📋 Certificate Details&lt;/h3&gt;
+                        &lt;table class="table"&gt;
+                                &lt;tbody&gt;
+                                        &lt;tr&gt;&lt;td&gt;&lt;strong&gt;Service Name&lt;/strong&gt;&lt;/td&gt;&lt;td&gt;%s&lt;/td&gt;&lt;/tr&gt;
+                                        &lt;tr&gt;&lt;td&gt;&lt;strong&gt;Service IP&lt;/strong&gt;&lt;/td&gt;&lt;td&gt;%s&lt;/td&gt;&lt;/tr&gt;
+                                        &lt;tr&gt;&lt;td&gt;&lt;strong&gt;Domains&lt;/strong&gt;&lt;/td&gt;&lt;td&gt;%s&lt;/td&gt;&lt;/tr&gt;
+                                        &lt;tr&gt;&lt;td&gt;&lt;strong&gt;Certificate Size&lt;/strong&gt;&lt;/td&gt;&lt;td&gt;%d bytes&lt;/td&gt;&lt;/tr&gt;
+                                        &lt;tr&gt;&lt;td&gt;&lt;strong&gt;Private Key Size&lt;/strong&gt;&lt;/td&gt;&lt;td&gt;%d bytes&lt;/td&gt;&lt;/tr&gt;
+                                &lt;/tbody&gt;
+                        &lt;/table&gt;
+                &lt;/div&gt;
+                
+                &lt;div class="card"&gt;
+                        &lt;h4&gt;📄 Certificate (PEM)&lt;/h4&gt;
+                        &lt;textarea class="form-input" rows="8" readonly onclick="this.select()"&gt;%s&lt;/textarea&gt;
+                        &lt;p style="margin-top: 8px; color: #86868b; font-size: 14px;"&gt;
+                                Save this as &lt;code&gt;%s.crt&lt;/code&gt;
+                        &lt;/p&gt;
+                &lt;/div&gt;
+                
+                &lt;div class="card"&gt;
+                        &lt;h4&gt;🔑 Private Key (PEM)&lt;/h4&gt;
+                        &lt;textarea class="form-input" rows="8" readonly onclick="this.select()"&gt;%s&lt;/textarea&gt;
+                        &lt;p style="margin-top: 8px; color: #86868b; font-size: 14px;"&gt;
+                                Save this as &lt;code&gt;%s.key&lt;/code&gt; and keep it secure!
+                        &lt;/p&gt;
+                &lt;/div&gt;
+                
+                &lt;div style="margin-top: 16px;"&gt;
+                        &lt;a href="/ui/certs" class="btn"&gt;📋 View All Certificates&lt;/a&gt;
+                        &lt;a href="/ui/generate" class="btn btn-success"&gt;🔐 Generate Another&lt;/a&gt;
+                &lt;/div&gt;
+        `,
+                serviceName,
+                serviceName, serviceIP, strings.Join(domains, ", "),
+                len(certPEM), len(keyPEM),
+                certPEM, serviceName,
+                keyPEM, serviceName,
+        )
+
+        g.writeHTMLResponse(w, html)</span>
+}
+
+// HandleCertDetails renders certificate details for the modal
+func (g *GUIHandler) HandleCertDetails(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        // Extract serial number from URL path
+        path := strings.TrimPrefix(r.URL.Path, "/ui/cert-details/")
+        serialNumber := strings.TrimSpace(path)
+
+        if serialNumber == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Serial number required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov0" title="0">certs := g.ca.GetIssuedCertificates()
+        var foundCert *IssuedCert
+        for _, cert := range certs </span><span class="cov0" title="0">{
+                if cert.SerialNumber == serialNumber </span><span class="cov0" title="0">{
+                        foundCert = cert
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">if foundCert == nil </span><span class="cov0" title="0">{
+                g.writeHTMLResponse(w, `
+                        &lt;div class="alert alert-error"&gt;
+                                &lt;strong&gt;Error:&lt;/strong&gt; Certificate not found.
+                        &lt;/div&gt;
+                `)
+                return
+        }</span>
+
+        <span class="cov0" title="0">certVM := g.prepareCertificate(foundCert)
+        if err := g.templates.ExecuteTemplate(w, "cert-details", certVM); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Internal server error", http.StatusInternalServerError)
+                return
+        }</span>
+}
+
+// prepareCertificates converts IssuedCert slice to CertificateViewModel slice
+func (g *GUIHandler) prepareCertificates(certs []*IssuedCert) []CertificateViewModel <span class="cov8" title="1">{
+        result := make([]CertificateViewModel, 0, len(certs))
+
+        for _, cert := range certs </span><span class="cov8" title="1">{
+                vm := g.prepareCertificate(cert)
+                result = append(result, vm)
+        }</span>
+
+        // Sort by issued date (newest first)
+        <span class="cov8" title="1">sort.Slice(result, func(i, j int) bool </span><span class="cov0" title="0">{
+                return result[i].IssuedAt.After(result[j].IssuedAt)
+        }</span>)
+
+        <span class="cov8" title="1">return result</span>
+}
+
+// prepareCertificate converts IssuedCert to CertificateViewModel
+func (g *GUIHandler) prepareCertificate(cert *IssuedCert) CertificateViewModel <span class="cov8" title="1">{
+        now := time.Now()
+        expiringThreshold := 7 * 24 * time.Hour // 7 days
+
+        return CertificateViewModel{
+                IssuedCert:     cert,
+                IsExpired:      now.After(cert.ExpiresAt),
+                IsExpiringSoon: !now.After(cert.ExpiresAt) &amp;&amp; cert.ExpiresAt.Sub(now) &lt; expiringThreshold,
+        }
+}</span>
+
+// writeHTMLResponse writes an HTML response
+func (g *GUIHandler) writeHTMLResponse(w http.ResponseWriter, html string) <span class="cov0" title="0">{
+        w.Header().Set("Content-Type", "text/html")
+        w.Write([]byte(html))
+}</span>
+
+// HandleLegacyWebUI handles the legacy web UI (old inline HTML template)
+func (g *GUIHandler) HandleLegacyWebUI(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        <span class="cov0" title="0">html := `&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;GoogleEmu Certificate Authority&lt;/title&gt;
+    &lt;style&gt;
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; background: #f5f5f7; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #1d1d1f; margin-bottom: 8px; }
+        .subtitle { color: #86868b; margin-bottom: 32px; }
+        .card { border: 1px solid #d2d2d7; border-radius: 8px; padding: 24px; margin: 16px 0; }
+        .button { background: #007aff; color: white; padding: 12px 24px; border: none; border-radius: 8px; text-decoration: none; display: inline-block; margin: 8px 8px 8px 0; }
+        .button:hover { background: #0056cc; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+        .stat { background: #f6f6f6; padding: 16px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #007aff; }
+        .stat-label { color: #86868b; font-size: 14px; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div class="container"&gt;
+        &lt;h1&gt;SharedGoLibs Certificate Authority&lt;/h1&gt;
+        &lt;p class="subtitle"&gt;Dynamic SSL certificate issuance for development services&lt;/p&gt;
+        
+        &lt;div class="stats"&gt;
+            &lt;div class="stat"&gt;
+                &lt;div class="stat-value"&gt;{{.CertCount}}&lt;/div&gt;
+                &lt;div class="stat-label"&gt;Certificates Issued&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class="stat"&gt;
+                &lt;div class="stat-value"&gt;{{.CAValidUntil}}&lt;/div&gt;
+                &lt;div class="stat-label"&gt;CA Valid Until&lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+
+        &lt;div class="card"&gt;
+            &lt;h3&gt;Quick Actions&lt;/h3&gt;
+            &lt;a href="/ui/certs" class="button"&gt;📋 View All Certificates&lt;/a&gt;
+            &lt;a href="/ui/generate" class="button"&gt;🔐 Generate New Certificate&lt;/a&gt;
+            &lt;a href="/ui/download-ca" class="button"&gt;⬇️ Download Root CA&lt;/a&gt;
+        &lt;/div&gt;
+
+        &lt;div class="card"&gt;
+            &lt;h3&gt;API Endpoints&lt;/h3&gt;
+            &lt;ul&gt;
+                &lt;li&gt;&lt;code&gt;GET /ca&lt;/code&gt; - Download CA certificate&lt;/li&gt;
+                &lt;li&gt;&lt;code&gt;POST /cert&lt;/code&gt; - Request service certificate&lt;/li&gt;
+                &lt;li&gt;&lt;code&gt;GET /health&lt;/code&gt; - Health check&lt;/li&gt;
+            &lt;/ul&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;`
+
+        tmpl, err := template.New("dashboard").Parse(html)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Template error", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov0" title="0">certCount := g.ca.GetCertificateCount()
+
+        data := struct {
+                CertCount    int
+                CAValidUntil string
+        }{
+                CertCount:    certCount,
+                CAValidUntil: g.ca.Certificate().NotAfter.Format("Jan 2, 2006"),
+        }
+
+        w.Header().Set("Content-Type", "text/html")
+        tmpl.Execute(w, data)</span>
+}
+
+// HandleLegacyCertsList handles the legacy certificates list (old inline HTML template)
+func (g *GUIHandler) HandleLegacyCertsList(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        <span class="cov0" title="0">html := `&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Issued Certificates - SharedGoLibs CA&lt;/title&gt;
+    &lt;style&gt;
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; background: #f5f5f7; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #1d1d1f; margin-bottom: 32px; }
+        .back-link { color: #007aff; text-decoration: none; margin-bottom: 24px; display: inline-block; }
+        .cert-table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+        .cert-table th, .cert-table td { padding: 12px; text-align: left; border-bottom: 1px solid #d2d2d7; }
+        .cert-table th { background: #f6f6f6; font-weight: 600; }
+        .domains { font-family: Monaco, monospace; font-size: 12px; color: #007aff; }
+        .date { color: #86868b; font-size: 14px; }
+        .serial { font-family: Monaco, monospace; font-size: 12px; }
+        .empty { text-align: center; color: #86868b; padding: 40px; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div class="container"&gt;
+        &lt;a href="/ui/" class="back-link"&gt;← Back to Dashboard&lt;/a&gt;
+        &lt;h1&gt;Issued Certificates&lt;/h1&gt;
+        
+        {{if .Certs}}
+        &lt;table class="cert-table"&gt;
+            &lt;thead&gt;
+                &lt;tr&gt;
+                    &lt;th&gt;Service Name&lt;/th&gt;
+                    &lt;th&gt;Domains&lt;/th&gt;
+                    &lt;th&gt;Issued&lt;/th&gt;
+                    &lt;th&gt;Expires&lt;/th&gt;
+                    &lt;th&gt;Serial Number&lt;/th&gt;
+                &lt;/tr&gt;
+            &lt;/thead&gt;
+            &lt;tbody&gt;
+                {{range .Certs}}
+                &lt;tr&gt;
+                    &lt;td&gt;&lt;strong&gt;{{.ServiceName}}&lt;/strong&gt;&lt;/td&gt;
+                    &lt;td class="domains"&gt;{{.DomainsStr}}&lt;/td&gt;
+                    &lt;td class="date"&gt;{{.IssuedAtStr}}&lt;/td&gt;
+                    &lt;td class="date"&gt;{{.ExpiresAtStr}}&lt;/td&gt;
+                    &lt;td class="serial"&gt;{{.SerialNumber}}&lt;/td&gt;
+                &lt;/tr&gt;
+                {{end}}
+            &lt;/tbody&gt;
+        &lt;/table&gt;
+        {{else}}
+        &lt;div class="empty"&gt;
+            &lt;p&gt;No certificates have been issued yet.&lt;/p&gt;
+            &lt;a href="/ui/generate" style="color: #007aff;"&gt;Generate your first certificate&lt;/a&gt;
+        &lt;/div&gt;
+        {{end}}
+    &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;`
+
+        tmpl, err := template.New("certs").Parse(html)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Template error", http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Get certificates and prepare for display
+        <span class="cov0" title="0">certList := g.ca.GetIssuedCertificates()
+
+        // Sort by issued date (newest first)
+        sort.Slice(certList, func(i, j int) bool </span><span class="cov0" title="0">{
+                return certList[i].IssuedAt.After(certList[j].IssuedAt)
+        }</span>)
+
+        <span class="cov0" title="0">var certs []struct {
+                *IssuedCert
+                DomainsStr   string
+                IssuedAtStr  string
+                ExpiresAtStr string
+        }
+
+        for _, cert := range certList </span><span class="cov0" title="0">{
+                certs = append(certs, struct {
+                        *IssuedCert
+                        DomainsStr   string
+                        IssuedAtStr  string
+                        ExpiresAtStr string
+                }{
+                        IssuedCert:   cert,
+                        DomainsStr:   strings.Join(cert.Domains, ", "),
+                        IssuedAtStr:  cert.IssuedAt.Format("Jan 2, 2006 15:04"),
+                        ExpiresAtStr: cert.ExpiresAt.Format("Jan 2, 2006"),
+                })
+        }</span>
+
+        <span class="cov0" title="0">data := struct {
+                Certs []struct {
+                        *IssuedCert
+                        DomainsStr   string
+                        IssuedAtStr  string
+                        ExpiresAtStr string
+                }
+        }{
+                Certs: certs,
+        }
+
+        w.Header().Set("Content-Type", "text/html")
+        tmpl.Execute(w, data)</span>
+}
+
+// HandleLegacyGenerateForm handles the legacy generate form (old inline HTML template)
+func (g *GUIHandler) HandleLegacyGenerateForm(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method == http.MethodGet </span><span class="cov0" title="0">{
+                html := `&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Generate Certificate - SharedGoLibs CA&lt;/title&gt;
+    &lt;style&gt;
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; background: #f5f5f7; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #1d1d1f; margin-bottom: 32px; }
+        .back-link { color: #007aff; text-decoration: none; margin-bottom: 24px; display: inline-block; }
+        .form-group { margin: 24px 0; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #1d1d1f; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 16px; }
+        textarea { height: 120px; font-family: Monaco, monospace; }
+        .button { background: #007aff; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .button:hover { background: #0056cc; }
+        .help { color: #86868b; font-size: 14px; margin-top: 4px; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div class="container"&gt;
+        &lt;a href="/ui/" class="back-link"&gt;← Back to Dashboard&lt;/a&gt;
+        &lt;h1&gt;Generate New Certificate&lt;/h1&gt;
+        
+        &lt;form method="POST"&gt;
+            &lt;div class="form-group"&gt;
+                &lt;label for="service_name"&gt;Service Name&lt;/label&gt;
+                &lt;input type="text" id="service_name" name="service_name" required placeholder="my-service"&gt;
+                &lt;div class="help"&gt;A friendly name for this service&lt;/div&gt;
+            &lt;/div&gt;
+            
+            &lt;div class="form-group"&gt;
+                &lt;label for="domains"&gt;Domain Names (SANs)&lt;/label&gt;
+                &lt;textarea id="domains" name="domains" required placeholder="example.com&amp;#10;api.example.com&amp;#10;192.168.1.100&amp;#10;localhost"&gt;&lt;/textarea&gt;
+                &lt;div class="help"&gt;One domain/IP per line. Supports hostnames and IP addresses.&lt;/div&gt;
+            &lt;/div&gt;
+            
+            &lt;button type="submit" class="button"&gt;🔐 Generate Certificate&lt;/button&gt;
+        &lt;/form&gt;
+    &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;`
+
+                w.Header().Set("Content-Type", "text/html")
+                w.Write([]byte(html))
+                return
+        }</span>
+
+        <span class="cov0" title="0">if r.Method == http.MethodPost </span><span class="cov0" title="0">{
+                serviceName := r.FormValue("service_name")
+                domainsText := r.FormValue("domains")
+
+                if serviceName == "" || domainsText == "" </span><span class="cov0" title="0">{
+                        http.Error(w, "Service name and domains are required", http.StatusBadRequest)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">domains := []string{}
+                for _, domain := range strings.Split(domainsText, "\n") </span><span class="cov0" title="0">{
+                        domain = strings.TrimSpace(domain)
+                        if domain != "" </span><span class="cov0" title="0">{
+                                domains = append(domains, domain)
+                        }</span>
+                }
+
+                <span class="cov0" title="0">if len(domains) == 0 </span><span class="cov0" title="0">{
+                        http.Error(w, "At least one domain is required", http.StatusBadRequest)
+                        return
+                }</span>
+
+                // Generate certificate
+                <span class="cov0" title="0">certPEM, keyPEM, err := g.ca.GenerateCertificate(serviceName, "internal", domains)
+                if err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, fmt.Sprintf("Failed to generate certificate: %v", err), http.StatusInternalServerError)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">html := `&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Certificate Generated - SharedGoLibs CA&lt;/title&gt;
+    &lt;style&gt;
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; background: #f5f5f7; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #1d1d1f; margin-bottom: 32px; }
+        .back-link { color: #007aff; text-decoration: none; margin-bottom: 24px; display: inline-block; }
+        .success { background: #d4edda; color: #155724; padding: 16px; border-radius: 8px; margin: 24px 0; }
+        .cert-section { margin: 24px 0; }
+        .cert-section h3 { color: #1d1d1f; margin-bottom: 12px; }
+        .cert-output { font-family: Monaco, monospace; font-size: 12px; background: #f6f6f6; padding: 16px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; border: 1px solid #d2d2d7; }
+        .button { background: #007aff; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin: 8px 8px 8px 0; }
+        .button:hover { background: #0056cc; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div class="container"&gt;
+        &lt;a href="/ui/" class="back-link"&gt;← Back to Dashboard&lt;/a&gt;
+        &lt;h1&gt;Certificate Generated Successfully&lt;/h1&gt;
+        
+        &lt;div class="success"&gt;
+            ✅ Certificate for &lt;strong&gt;{{.ServiceName}}&lt;/strong&gt; has been generated with {{.DomainCount}} domain(s).
+        &lt;/div&gt;
+        
+        &lt;div class="cert-section"&gt;
+            &lt;h3&gt;Certificate (PEM format)&lt;/h3&gt;
+            &lt;div class="cert-output"&gt;{{.Certificate}}&lt;/div&gt;
+            &lt;button class="button" onclick="copyToClipboard('cert')"&gt;📋 Copy Certificate&lt;/button&gt;
+        &lt;/div&gt;
+        
+        &lt;div class="cert-section"&gt;
+            &lt;h3&gt;Private Key (PEM format)&lt;/h3&gt;
+            &lt;div class="cert-output"&gt;{{.PrivateKey}}&lt;/div&gt;
+            &lt;button class="button" onclick="copyToClipboard('key')"&gt;📋 Copy Private Key&lt;/button&gt;
+        &lt;/div&gt;
+        
+        &lt;div class="cert-section"&gt;
+            &lt;h3&gt;CA Certificate (PEM format)&lt;/h3&gt;
+            &lt;div class="cert-output"&gt;{{.CACert}}&lt;/div&gt;
+            &lt;button class="button" onclick="copyToClipboard('ca')"&gt;📋 Copy CA Certificate&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    
+    &lt;script&gt;
+        function copyToClipboard(type) {
+            const elements = document.querySelectorAll('.cert-output');
+            let text = '';
+            if (type === 'cert') text = elements[0].textContent;
+            else if (type === 'key') text = elements[1].textContent;
+            else if (type === 'ca') text = elements[2].textContent;
+            
+            navigator.clipboard.writeText(text).then(() =&gt; {
+                alert('Copied to clipboard!');
+            });
+        }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;`
+
+                tmpl, err := template.New("result").Parse(html)
+                if err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "Template error", http.StatusInternalServerError)
+                        return
+                }</span>
+
+                // Get CA cert PEM
+                <span class="cov0" title="0">caCertPEM := g.ca.CertificatePEM()
+
+                data := struct {
+                        ServiceName string
+                        DomainCount int
+                        Certificate string
+                        PrivateKey  string
+                        CACert      string
+                }{
+                        ServiceName: serviceName,
+                        DomainCount: len(domains),
+                        Certificate: certPEM,
+                        PrivateKey:  keyPEM,
+                        CACert:      string(caCertPEM),
+                }
+
+                w.Header().Set("Content-Type", "text/html")
+                tmpl.Execute(w, data)
+                return</span>
+        }
+
+        <span class="cov0" title="0">http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)</span>
+}
+
+// HandleDownloadCA handles CA certificate download requests
+func (g *GUIHandler) HandleDownloadCA(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        <span class="cov8" title="1">caCertPEM := g.ca.CertificatePEM()
+
+        w.Header().Set("Content-Type", "application/x-pem-file")
+        w.Header().Set("Content-Disposition", "attachment; filename=sharedgolibs-ca.crt")
+        w.Write(caCertPEM)</span>
+}
+
+// HandleDownloadCAKey handles CA private key download requests
+func (g *GUIHandler) HandleDownloadCAKey(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        <span class="cov0" title="0">caKeyPEM := g.ca.PrivateKeyPEM()
+
+        w.Header().Set("Content-Type", "application/x-pem-file")
+        w.Header().Set("Content-Disposition", "attachment; filename=sharedgolibs-ca.key")
+        w.Write(caKeyPEM)</span>
+}
+
+// HandleDownloadCert handles individual certificate download requests
+func (g *GUIHandler) HandleDownloadCert(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        // Extract serial number from URL path
+        <span class="cov0" title="0">path := strings.TrimPrefix(r.URL.Path, "/cert/")
+        serialNumber := strings.Split(path, "/")[0]
+
+        if serialNumber == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Serial number required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov0" title="0">certs := g.ca.GetIssuedCertificates()
+        var foundCert *IssuedCert
+        for _, cert := range certs </span><span class="cov0" title="0">{
+                if cert.SerialNumber == serialNumber </span><span class="cov0" title="0">{
+                        foundCert = cert
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">if foundCert == nil </span><span class="cov0" title="0">{
+                http.Error(w, "Certificate not found", http.StatusNotFound)
+                return
+        }</span>
+
+        <span class="cov0" title="0">filename := fmt.Sprintf("%s.crt", foundCert.ServiceName)
+        w.Header().Set("Content-Type", "application/x-pem-file")
+        w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+        w.Write([]byte(foundCert.Certificate))</span>
+}
+
+// HandleDownloadCertKey handles individual certificate private key download requests
+func (g *GUIHandler) HandleDownloadCertKey(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        // Extract serial number from URL path
+        <span class="cov0" title="0">path := strings.TrimPrefix(r.URL.Path, "/cert/")
+        serialNumber := strings.Split(path, "/")[0]
+
+        if serialNumber == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Serial number required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov0" title="0">certs := g.ca.GetIssuedCertificates()
+        var foundCert *IssuedCert
+        for _, cert := range certs </span><span class="cov0" title="0">{
+                if cert.SerialNumber == serialNumber </span><span class="cov0" title="0">{
+                        foundCert = cert
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">if foundCert == nil </span><span class="cov0" title="0">{
+                http.Error(w, "Certificate not found", http.StatusNotFound)
+                return
+        }</span>
+
+        <span class="cov0" title="0">filename := fmt.Sprintf("%s.key", foundCert.ServiceName)
+        w.Header().Set("Content-Type", "application/x-pem-file")
+        w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+        w.Write([]byte(foundCert.PrivateKey))</span>
+}
+
+// HandleCertsTable handles HTMX requests for the certificates table
+func (g *GUIHandler) HandleCertsTable(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        certs := g.ca.GetIssuedCertificates()
+        certificates := g.prepareCertificates(certs)
+
+        // Generate table HTML
+        html := `&lt;table class="table" hx-get="/ui/certs-table" hx-trigger="every 30s" hx-swap="outerHTML"&gt;
+                &lt;thead&gt;
+                        &lt;tr&gt;
+                                &lt;th&gt;SERVICE&lt;/th&gt;
+                                &lt;th&gt;COMMON NAME&lt;/th&gt;
+                                &lt;th&gt;SUBJECT ALT NAMES&lt;/th&gt;
+                                &lt;th&gt;SERIAL&lt;/th&gt;
+                                &lt;th&gt;ISSUED&lt;/th&gt;
+                                &lt;th&gt;EXPIRES&lt;/th&gt;
+                                &lt;th&gt;STATUS&lt;/th&gt;
+                                &lt;th&gt;ACTIONS&lt;/th&gt;
+                        &lt;/tr&gt;
+                &lt;/thead&gt;
+                &lt;tbody&gt;`
+
+        for _, cert := range certificates </span><span class="cov0" title="0">{
+                statusClass := "badge-success"
+                statusText := "VALID"
+                if cert.IsExpired </span><span class="cov0" title="0">{
+                        statusClass = "badge-danger"
+                        statusText = "EXPIRED"
+                }</span> else<span class="cov0" title="0"> if cert.IsExpiringSoon </span><span class="cov0" title="0">{
+                        statusClass = "badge-warning"
+                        statusText = "EXPIRING"
+                }</span>
+
+                <span class="cov0" title="0">domainsHTML := ""
+                if len(cert.Domains) &gt; 1 </span><span class="cov0" title="0">{
+                        domainsHTML = fmt.Sprintf(`&lt;details&gt;&lt;summary&gt;%d domains&lt;/summary&gt;`, len(cert.Domains))
+                        for _, domain := range cert.Domains </span><span class="cov0" title="0">{
+                                domainsHTML += fmt.Sprintf(`&lt;div&gt;&lt;code&gt;%s&lt;/code&gt;&lt;/div&gt;`, domain)
+                        }</span>
+                        <span class="cov0" title="0">domainsHTML += `&lt;/details&gt;`</span>
+                } else<span class="cov0" title="0"> if len(cert.Domains) &gt; 0 </span><span class="cov0" title="0">{
+                        domainsHTML = fmt.Sprintf(`&lt;code&gt;%s&lt;/code&gt;`, cert.Domains[0])
+                }</span>
+
+                <span class="cov0" title="0">html += fmt.Sprintf(`
+                        &lt;tr&gt;
+                                &lt;td&gt;&lt;strong&gt;%s&lt;/strong&gt;&lt;/td&gt;
+                                &lt;td&gt;&lt;code&gt;%s&lt;/code&gt;&lt;/td&gt;
+                                &lt;td&gt;%s&lt;/td&gt;
+                                &lt;td&gt;&lt;code&gt;%s&lt;/code&gt;&lt;/td&gt;
+                                &lt;td&gt;%s&lt;/td&gt;
+                                &lt;td&gt;%s&lt;/td&gt;
+                                &lt;td&gt;&lt;span class="badge %s"&gt;%s&lt;/span&gt;&lt;/td&gt;
+                                &lt;td&gt;
+                                        &lt;div class="download-links"&gt;
+                                                &lt;a href="/cert/%s" class="btn" onclick="downloadFile('/cert/%s', '%s.crt')" title="Download certificate"&gt;CERT&lt;/a&gt;
+                                                &lt;a href="/cert/%s/key" class="btn btn-danger" onclick="downloadFile('/cert/%s/key', '%s.key')" title="Download private key"&gt;KEY&lt;/a&gt;
+                                        &lt;/div&gt;
+                                &lt;/td&gt;
+                        &lt;/tr&gt;`,
+                        cert.ServiceName,
+                        cert.Domains[0],
+                        domainsHTML,
+                        cert.SerialNumber,
+                        cert.IssuedAt.Format("01-02 15:04"),
+                        cert.ExpiresAt.Format("01-02 15:04"),
+                        statusClass, statusText,
+                        cert.SerialNumber, cert.SerialNumber, cert.ServiceName,
+                        cert.SerialNumber, cert.SerialNumber, cert.ServiceName,
+                )</span>
+        }
+
+        <span class="cov0" title="0">html += `&lt;/tbody&gt;&lt;/table&gt;`
+
+        w.Header().Set("Content-Type", "text/html")
+        w.Write([]byte(html))</span>
+}
+
+// HandleLogStream handles Server-Sent Events for live log streaming
+func (g *GUIHandler) HandleLogStream(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        w.Header().Set("Content-Type", "text/event-stream")
+        w.Header().Set("Cache-Control", "no-cache")
+        w.Header().Set("Connection", "keep-alive")
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+
+        // Send initial message
+        fmt.Fprintf(w, "data: CA System initialized\n\n")
+        if f, ok := w.(http.Flusher); ok </span><span class="cov0" title="0">{
+                f.Flush()
+        }</span>
+
+        // Create a channel to receive log messages
+        <span class="cov0" title="0">logChan := make(chan string, 100)
+
+        // TODO: Connect to actual log stream from CA
+        // For now, send periodic status updates
+        ticker := time.NewTicker(5 * time.Second)
+        defer ticker.Stop()
+
+        for </span><span class="cov0" title="0">{
+                select </span>{
+                case &lt;-ticker.C:<span class="cov0" title="0">
+                        certs := g.ca.GetIssuedCertificates()
+                        message := fmt.Sprintf("System status: %d certificates active", len(certs))
+                        fmt.Fprintf(w, "data: %s\n\n", message)
+                        if f, ok := w.(http.Flusher); ok </span><span class="cov0" title="0">{
+                                f.Flush()
+                        }</span>
+                case &lt;-r.Context().Done():<span class="cov0" title="0">
+                        return</span>
+                case msg := &lt;-logChan:<span class="cov0" title="0">
+                        fmt.Fprintf(w, "data: %s\n\n", msg)
+                        if f, ok := w.(http.Flusher); ok </span><span class="cov0" title="0">{
+                                f.Flush()
+                        }</span>
+                }
+        }
+}
+
+// HandleStatic serves static files (JS, CSS, fonts) from embedded filesystem
+func (g *GUIHandler) HandleStatic(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        // Remove /ui/static/ prefix to get the file path within the static directory
+        path := strings.TrimPrefix(r.URL.Path, "/ui/static/")
+        if path == "" || path == "/" </span><span class="cov0" title="0">{
+                http.NotFound(w, r)
+                return
+        }</span>
+
+        // Construct the full path within the embedded filesystem
+        <span class="cov0" title="0">fullPath := "gui/static/" + path
+
+        // Read the file from embedded filesystem
+        data, err := staticFS.ReadFile(fullPath)
+        if err != nil </span><span class="cov0" title="0">{
+                http.NotFound(w, r)
+                return
+        }</span>
+
+        // Set appropriate content type based on file extension
+        <span class="cov0" title="0">var contentType string
+        switch </span>{
+        case strings.HasSuffix(path, ".js"):<span class="cov0" title="0">
+                contentType = "application/javascript"</span>
+        case strings.HasSuffix(path, ".css"):<span class="cov0" title="0">
+                contentType = "text/css"</span>
+        case strings.HasSuffix(path, ".woff2"):<span class="cov0" title="0">
+                contentType = "font/woff2"</span>
+        case strings.HasSuffix(path, ".woff"):<span class="cov0" title="0">
+                contentType = "font/woff"</span>
+        case strings.HasSuffix(path, ".ttf"):<span class="cov0" title="0">
+                contentType = "font/ttf"</span>
+        default:<span class="cov0" title="0">
+                contentType = "application/octet-stream"</span>
+        }
+
+        // Set headers for caching
+        <span class="cov0" title="0">w.Header().Set("Content-Type", contentType)
+        w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+
+        // Write the file content
+        w.Write(data)</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Package ca provides HTTP server functionality for the Certificate Authority
+package ca
+
+import (
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "strings"
+
+        "github.com/nzions/sharedgolibs/pkg/middleware"
+)
+
+// Server wraps the CA with HTTP server functionality
+type Server struct {
+        ca        *CA
+        port      string
+        enableGUI bool
+        guiAPIKey string
+        gui       *GUIHandler
+}
+
+// ServerConfig holds configuration for the CA server
+type ServerConfig struct {
+        Port       string
+        CAConfig   *CAConfig
+        EnableGUI  bool   // Enable the web GUI interface
+        GUIAPIKey  string // API key required for GUI access (if set)
+        PersistDir string // Directory to persist CA data (empty = RAM only)
+}
+
+// DefaultServerConfig returns sensible defaults for server configuration
+func DefaultServerConfig() *ServerConfig <span class="cov8" title="1">{
+        return &amp;ServerConfig{
+                Port:       "8090",
+                CAConfig:   DefaultCAConfig(),
+                EnableGUI:  true, // GUI enabled by default
+                GUIAPIKey:  "",   // No API key by default
+                PersistDir: "",   // RAM only by default
+        }
+}</span>
+
+// NewServer creates a new CA server
+func NewServer(config *ServerConfig) (*Server, error) <span class="cov8" title="1">{
+        if config == nil </span><span class="cov8" title="1">{
+                config = DefaultServerConfig()
+        }</span>
+
+        // Pass PersistDir from ServerConfig to CAConfig
+        <span class="cov8" title="1">if config.CAConfig != nil </span><span class="cov8" title="1">{
+                config.CAConfig.PersistDir = config.PersistDir
+        }</span> else<span class="cov0" title="0"> {
+                config.CAConfig = DefaultCAConfig()
+                config.CAConfig.PersistDir = config.PersistDir
+        }</span>
+
+        <span class="cov8" title="1">ca, err := NewCA(config.CAConfig)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create CA: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">server := &amp;Server{
+                ca:        ca,
+                port:      config.Port,
+                enableGUI: config.EnableGUI,
+                guiAPIKey: config.GUIAPIKey,
+        }
+
+        // Initialize GUI handler if enabled
+        if config.EnableGUI </span><span class="cov8" title="1">{
+                gui, err := NewGUIHandler(ca, config.GUIAPIKey)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("failed to create GUI handler: %w", err)
+                }</span>
+                <span class="cov8" title="1">server.gui = gui</span>
+        }
+
+        <span class="cov8" title="1">return server, nil</span>
+}
+
+// Start starts the HTTP server
+func (s *Server) Start() error <span class="cov0" title="0">{
+        // Set up HTTP handlers with API key protection if configured
+        var caHandler, certHandler, healthHandler http.Handler
+        caHandler = http.HandlerFunc(s.handleCARequest)
+        certHandler = http.HandlerFunc(s.handleCertRequest)
+        healthHandler = http.HandlerFunc(s.handleHealth)
+
+        // Apply API key middleware to API endpoints if API key is configured
+        if s.guiAPIKey != "" </span><span class="cov0" title="0">{
+                caHandler = middleware.WithAPIKey(s.guiAPIKey, caHandler)
+                certHandler = middleware.WithAPIKey(s.guiAPIKey, certHandler)
+                healthHandler = middleware.WithAPIKey(s.guiAPIKey, healthHandler)
+        }</span>
+
+        <span class="cov0" title="0">http.Handle("/ca", caHandler)
+        http.Handle("/cert", certHandler)
+        http.Handle("/health", healthHandler)
+
+        // Web UI handlers (only if GUI is enabled)
+        if s.enableGUI &amp;&amp; s.gui != nil </span><span class="cov0" title="0">{
+                // Apply API key middleware if configured
+                var dashboardHandler, certsHandler, generateHandler, apiHandler, certDetailsHandler, downloadCAHandler, downloadCAKeyHandler, certsTableHandler, logStreamHandler, staticHandler http.Handler
+                dashboardHandler = http.HandlerFunc(s.gui.HandleDashboard)
+                certsHandler = http.HandlerFunc(s.gui.HandleCertificates)
+                generateHandler = http.HandlerFunc(s.gui.HandleGenerate)
+                apiHandler = http.HandlerFunc(s.gui.HandleAPI)
+                certDetailsHandler = http.HandlerFunc(s.gui.HandleCertDetails)
+                downloadCAHandler = http.HandlerFunc(s.gui.HandleDownloadCA)
+                downloadCAKeyHandler = http.HandlerFunc(s.gui.HandleDownloadCAKey)
+                certsTableHandler = http.HandlerFunc(s.gui.HandleCertsTable)
+                logStreamHandler = http.HandlerFunc(s.gui.HandleLogStream)
+                staticHandler = http.HandlerFunc(s.gui.HandleStatic)
+
+                if s.guiAPIKey != "" </span><span class="cov0" title="0">{
+                        dashboardHandler = middleware.WithAPIKey(s.guiAPIKey, dashboardHandler)
+                        certsHandler = middleware.WithAPIKey(s.guiAPIKey, certsHandler)
+                        generateHandler = middleware.WithAPIKey(s.guiAPIKey, generateHandler)
+                        apiHandler = middleware.WithAPIKey(s.guiAPIKey, apiHandler)
+                        certDetailsHandler = middleware.WithAPIKey(s.guiAPIKey, certDetailsHandler)
+                        downloadCAHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAHandler)
+                        downloadCAKeyHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAKeyHandler)
+                        certsTableHandler = middleware.WithAPIKey(s.guiAPIKey, certsTableHandler)
+                        logStreamHandler = middleware.WithAPIKey(s.guiAPIKey, logStreamHandler)
+                        // Note: Static files typically don't require API key authentication
+                        // Note: Certificate downloads (/cert/) are handled by special function below
+                }</span>
+
+                <span class="cov0" title="0">http.Handle("/", dashboardHandler)
+                http.Handle("/ui/", dashboardHandler)
+                http.Handle("/ui/certs", certsHandler)
+                http.Handle("/ui/generate", generateHandler)
+                http.Handle("/ui/api", apiHandler)
+                http.Handle("/ui/cert-details/", certDetailsHandler)
+                http.Handle("/ui/download-ca", downloadCAHandler)
+                http.Handle("/ca-key", downloadCAKeyHandler)
+                http.Handle("/ui/certs-table", certsTableHandler)
+                http.Handle("/ui/logs", logStreamHandler)
+                http.Handle("/ui/static/", staticHandler)
+
+                // Certificate download routes - these need special handling
+                http.HandleFunc("/cert/", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                        if s.guiAPIKey != "" </span><span class="cov0" title="0">{
+                                // Check API key
+                                apiKey := r.Header.Get("X-API-Key")
+                                if apiKey == "" </span><span class="cov0" title="0">{
+                                        apiKey = r.URL.Query().Get("api_key")
+                                }</span>
+                                <span class="cov0" title="0">if apiKey != s.guiAPIKey </span><span class="cov0" title="0">{
+                                        http.Error(w, "Unauthorized: Invalid or missing API key", http.StatusUnauthorized)
+                                        return
+                                }</span>
+                        }
+
+                        // Check if it's a key request
+                        <span class="cov0" title="0">if strings.HasSuffix(r.URL.Path, "/key") </span><span class="cov0" title="0">{
+                                s.gui.HandleDownloadCertKey(w, r)
+                        }</span> else<span class="cov0" title="0"> {
+                                s.gui.HandleDownloadCert(w, r)
+                        }</span>
+                })
+        }
+
+        <span class="cov0" title="0">log.Printf("[ca] Certificate Authority listening on port %s", s.port)
+        log.Printf("[ca] Endpoints:")
+        log.Printf("[ca]   GET  /ca    - Download CA certificate")
+        log.Printf("[ca]   POST /cert  - Request service certificate")
+        log.Printf("[ca]   GET  /health - Health check")
+
+        if s.guiAPIKey != "" </span><span class="cov0" title="0">{
+                log.Printf("[ca]   Note: All endpoints require API key authentication")
+                log.Printf("[ca]   Use X-API-Key header or ?api_key= query parameter")
+        }</span>
+
+        <span class="cov0" title="0">if s.enableGUI </span><span class="cov0" title="0">{
+                log.Printf("[ca]   GUI Interface:")
+                log.Printf("[ca]     GET  /ui/   - Web UI dashboard")
+                log.Printf("[ca]     GET  /ui/certs - List issued certificates")
+                log.Printf("[ca]     GET  /ui/generate - Generate new certificate")
+                log.Printf("[ca]     GET  /ui/api - API documentation")
+        }</span> else<span class="cov0" title="0"> {
+                log.Printf("[ca]   GUI interface is disabled")
+        }</span>
+
+        <span class="cov0" title="0">return http.ListenAndServe(":"+s.port, nil)</span>
+}
+
+// GetCA returns the underlying CA instance
+func (s *Server) GetCA() *CA <span class="cov0" title="0">{
+        return s.ca
+}</span>
+
+func (s *Server) handleCARequest(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        <span class="cov8" title="1">log.Printf("[ca] CA certificate requested from %s", r.RemoteAddr)
+
+        caCertPEM := s.ca.CertificatePEM()
+
+        w.Header().Set("Content-Type", "application/x-pem-file")
+        w.Header().Set("Content-Disposition", "attachment; filename=sharedgolibs-ca.crt")
+        w.Write(caCertPEM)</span>
+}
+
+func (s *Server) handleCertRequest(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if r.Method != http.MethodPost </span><span class="cov8" title="1">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var req CertRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+                log.Printf("[ca] Invalid certificate request from %s: %v", r.RemoteAddr, err)
+                http.Error(w, "Invalid request", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Validate the request using the same validation as IssueServiceCertificate
+        <span class="cov8" title="1">if req.ServiceName == "" </span><span class="cov8" title="1">{
+                log.Printf("[ca] Invalid certificate request from %s: missing service_name", r.RemoteAddr)
+                http.Error(w, "service_name is required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if len(req.Domains) == 0 </span><span class="cov8" title="1">{
+                log.Printf("[ca] Invalid certificate request from %s: missing domains", r.RemoteAddr)
+                http.Error(w, "domains are required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">log.Printf("[ca] Certificate request from %s for service: %s, IP: %s, domains: %v", r.RemoteAddr, req.ServiceName, req.ServiceIP, req.Domains)
+
+        // Issue certificate using the CA
+        response, err := s.ca.IssueServiceCertificate(req)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("[ca] Failed to generate certificate for %s: %v", req.ServiceName, err)
+                http.Error(w, "Certificate generation failed", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)
+
+        log.Printf("[ca] ✅ Certificate issued for %s", req.ServiceName)</span>
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        <span class="cov8" title="1">caInfo := s.ca.GetCAInfo()
+        response := map[string]interface{}{
+                "status":  "healthy",
+                "version": Version,
+                "ca_info": caInfo,
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package ca
+
+import (
+        "crypto/rand"
+        "crypto/rsa"
+        "crypto/x509"
+        "crypto/x509/pkix"
+        "encoding/json"
+        "encoding/pem"
+        "fmt"
+        "math/big"
+        "net"
+        "os"
+        "path/filepath"
+        "sync"
+        "time"
+)
+
+// CertStorage defines the interface for certificate storage
+type CertStorage interface {
+        // GenerateAndStore generates a certificate and stores it atomically
+        GenerateAndStore(ca *CA, serviceName, serviceIP string, domains []string) (string, string, error)
+        // GetAll returns all stored certificates
+        GetAll() ([]*IssuedCert, error)
+        // GetBySerial returns a certificate by serial number
+        GetBySerial(serial string) (*IssuedCert, error)
+        // Count returns the number of stored certificates
+        Count() (int, error)
+}
+
+// RAMStorage implements in-memory certificate storage
+type RAMStorage struct {
+        certs map[string]*IssuedCert
+        mutex sync.RWMutex
+}
+
+// NewRAMStorage creates a new in-memory storage
+func NewRAMStorage() *RAMStorage <span class="cov8" title="1">{
+        return &amp;RAMStorage{
+                certs: make(map[string]*IssuedCert),
+        }
+}</span>
+
+// GenerateAndStore generates a certificate and stores it atomically
+func (s *RAMStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, domains []string) (string, string, error) <span class="cov8" title="1">{
+        // Generate the certificate
+        serviceCertPEM, serviceKeyPEM, issuedCert, err := s.generateCertificate(ca, serviceName, serviceIP, domains)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", "", err
+        }</span>
+
+        // Store atomically
+        <span class="cov8" title="1">s.mutex.Lock()
+        s.certs[issuedCert.SerialNumber] = issuedCert
+        s.mutex.Unlock()
+
+        return serviceCertPEM, serviceKeyPEM, nil</span>
+}
+
+// GetAll returns all certificates from memory
+func (s *RAMStorage) GetAll() ([]*IssuedCert, error) <span class="cov8" title="1">{
+        s.mutex.RLock()
+        defer s.mutex.RUnlock()
+
+        certs := make([]*IssuedCert, 0, len(s.certs))
+        for _, cert := range s.certs </span><span class="cov8" title="1">{
+                certs = append(certs, cert)
+        }</span>
+        <span class="cov8" title="1">return certs, nil</span>
+}
+
+// GetBySerial returns a certificate by serial number from memory
+func (s *RAMStorage) GetBySerial(serial string) (*IssuedCert, error) <span class="cov8" title="1">{
+        s.mutex.RLock()
+        defer s.mutex.RUnlock()
+
+        cert, exists := s.certs[serial]
+        if !exists </span><span class="cov8" title="1">{
+                return nil, nil
+        }</span>
+        <span class="cov8" title="1">return cert, nil</span>
+}
+
+// Count returns the number of certificates in memory
+func (s *RAMStorage) Count() (int, error) <span class="cov8" title="1">{
+        s.mutex.RLock()
+        defer s.mutex.RUnlock()
+        return len(s.certs), nil
+}</span>
+
+// DiskStorage implements persistent certificate storage
+type DiskStorage struct {
+        persistDir string
+        certs      map[string]*IssuedCert
+        mutex      sync.RWMutex
+}
+
+// NewDiskStorage creates a new disk-based storage
+func NewDiskStorage(persistDir string) (*DiskStorage, error) <span class="cov8" title="1">{
+        storage := &amp;DiskStorage{
+                persistDir: persistDir,
+                certs:      make(map[string]*IssuedCert),
+        }
+
+        // Create directory if it doesn't exist
+        if err := os.MkdirAll(persistDir, 0755); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create persist directory %s: %w", persistDir, err)
+        }</span>
+
+        // Check if directory is writable
+        <span class="cov8" title="1">testFile := filepath.Join(persistDir, ".write_test")
+        if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("persist directory %s is not writable: %w", persistDir, err)
+        }</span>
+        <span class="cov8" title="1">os.Remove(testFile) // Clean up test file
+
+        // Load existing certificates
+        if err := storage.loadFromDisk(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to load certificates from disk: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return storage, nil</span>
+}
+
+// GenerateAndStore generates a certificate and stores it atomically to disk
+func (s *DiskStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, domains []string) (string, string, error) <span class="cov8" title="1">{
+        // Generate the certificate
+        serviceCertPEM, serviceKeyPEM, issuedCert, err := s.generateCertificate(ca, serviceName, serviceIP, domains)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", "", err
+        }</span>
+
+        // Store atomically (both in memory and on disk)
+        <span class="cov8" title="1">s.mutex.Lock()
+        defer s.mutex.Unlock()
+
+        s.certs[issuedCert.SerialNumber] = issuedCert
+        err = s.saveToDisk()
+        if err != nil </span><span class="cov0" title="0">{
+                // Rollback the in-memory change if disk save fails
+                delete(s.certs, issuedCert.SerialNumber)
+                return "", "", fmt.Errorf("failed to persist certificate to disk: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return serviceCertPEM, serviceKeyPEM, nil</span>
+}
+
+// GetAll returns all certificates from disk storage
+func (s *DiskStorage) GetAll() ([]*IssuedCert, error) <span class="cov8" title="1">{
+        s.mutex.RLock()
+        defer s.mutex.RUnlock()
+
+        certs := make([]*IssuedCert, 0, len(s.certs))
+        for _, cert := range s.certs </span><span class="cov8" title="1">{
+                certs = append(certs, cert)
+        }</span>
+        <span class="cov8" title="1">return certs, nil</span>
+}
+
+// GetBySerial returns a certificate by serial number from disk storage
+func (s *DiskStorage) GetBySerial(serial string) (*IssuedCert, error) <span class="cov8" title="1">{
+        s.mutex.RLock()
+        defer s.mutex.RUnlock()
+
+        cert, exists := s.certs[serial]
+        if !exists </span><span class="cov0" title="0">{
+                return nil, nil
+        }</span>
+        <span class="cov8" title="1">return cert, nil</span>
+}
+
+// Count returns the number of certificates in disk storage
+func (s *DiskStorage) Count() (int, error) <span class="cov8" title="1">{
+        s.mutex.RLock()
+        defer s.mutex.RUnlock()
+        return len(s.certs), nil
+}</span>
+
+// generateCertificate creates a new certificate (shared logic between storage types)
+func (s *RAMStorage) generateCertificate(ca *CA, serviceName, serviceIP string, domains []string) (string, string, *IssuedCert, error) <span class="cov8" title="1">{
+        return generateCertificateInternal(ca, serviceName, serviceIP, domains)
+}</span>
+
+// generateCertificate creates a new certificate (shared logic between storage types)
+func (s *DiskStorage) generateCertificate(ca *CA, serviceName, serviceIP string, domains []string) (string, string, *IssuedCert, error) <span class="cov8" title="1">{
+        return generateCertificateInternal(ca, serviceName, serviceIP, domains)
+}</span>
+
+// generateCertificateInternal contains the shared certificate generation logic
+func generateCertificateInternal(ca *CA, serviceName, serviceIP string, domains []string) (string, string, *IssuedCert, error) <span class="cov8" title="1">{
+        // Generate service private key
+        serviceKey, err := rsa.GenerateKey(rand.Reader, 2048)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", "", nil, fmt.Errorf("failed to generate service private key: %w", err)
+        }</span>
+
+        // Generate serial number
+        <span class="cov8" title="1">serialNumber, err := rand.Int(rand.Reader, big.NewInt(1000000000))
+        if err != nil </span><span class="cov0" title="0">{
+                return "", "", nil, fmt.Errorf("failed to generate serial number: %w", err)
+        }</span>
+
+        // Create certificate template
+        <span class="cov8" title="1">template := x509.Certificate{
+                SerialNumber: serialNumber,
+                Subject: pkix.Name{
+                        CommonName:   serviceName + ".local",
+                        Organization: []string{"SharedGoLibs Services"},
+                },
+                NotBefore:             time.Now(),
+                NotAfter:              time.Now().Add(365 * 24 * time.Hour), // 1 year
+                KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+                ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+                BasicConstraintsValid: true,
+        }
+
+        // Keep track of added IPs to avoid duplicates
+        addedIPs := make(map[string]bool)
+
+        // Add service IP first if provided
+        if serviceIP != "" &amp;&amp; serviceIP != "0.0.0.0" </span><span class="cov8" title="1">{
+                if ip := net.ParseIP(serviceIP); ip != nil </span><span class="cov8" title="1">{
+                        template.IPAddresses = append(template.IPAddresses, ip)
+                        addedIPs[serviceIP] = true
+                }</span>
+        }
+
+        // Process domains - separate DNS names from IP addresses
+        <span class="cov8" title="1">for _, domain := range domains </span><span class="cov8" title="1">{
+                if ip := net.ParseIP(domain); ip != nil </span><span class="cov8" title="1">{
+                        // This is an IP address - add only if not already present
+                        if !addedIPs[domain] </span><span class="cov8" title="1">{
+                                template.IPAddresses = append(template.IPAddresses, ip)
+                                addedIPs[domain] = true
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        // This is a DNS name
+                        template.DNSNames = append(template.DNSNames, domain)
+                }</span>
+        }
+
+        // Generate certificate using CA (need to protect CA access)
+        <span class="cov8" title="1">ca.mutex.RLock()
+        caCert := ca.cert
+        caKey := ca.privateKey
+        ca.mutex.RUnlock()
+
+        if caCert == nil || caKey == nil </span><span class="cov0" title="0">{
+                return "", "", nil, fmt.Errorf("CA not properly initialized")
+        }</span>
+
+        <span class="cov8" title="1">certDER, err := x509.CreateCertificate(rand.Reader, &amp;template, caCert, &amp;serviceKey.PublicKey, caKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", "", nil, fmt.Errorf("failed to create certificate: %w", err)
+        }</span>
+
+        // Encode certificate as PEM
+        <span class="cov8" title="1">serviceCertPEM := pem.EncodeToMemory(&amp;pem.Block{
+                Type:  "CERTIFICATE",
+                Bytes: certDER,
+        })
+
+        // Encode private key as PEM
+        serviceKeyPEM := pem.EncodeToMemory(&amp;pem.Block{
+                Type:  "RSA PRIVATE KEY",
+                Bytes: x509.MarshalPKCS1PrivateKey(serviceKey),
+        })
+
+        // Create IssuedCert record
+        issuedCert := &amp;IssuedCert{
+                ServiceName:  serviceName,
+                Domains:      domains,
+                IssuedAt:     time.Now(),
+                ExpiresAt:    template.NotAfter,
+                Certificate:  string(serviceCertPEM),
+                PrivateKey:   string(serviceKeyPEM),
+                SerialNumber: fmt.Sprintf("%x", serialNumber),
+        }
+
+        return string(serviceCertPEM), string(serviceKeyPEM), issuedCert, nil</span>
+}
+
+// saveToDisk saves the certificate store to disk (must be called with mutex locked)
+func (s *DiskStorage) saveToDisk() error <span class="cov8" title="1">{
+        certStorePath := filepath.Join(s.persistDir, "cert-store.json")
+
+        data, err := json.MarshalIndent(s.certs, "", "  ")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal certificate store: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if err := os.WriteFile(certStorePath, data, 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to save certificate store: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// loadFromDisk loads the certificate store from disk
+func (s *DiskStorage) loadFromDisk() error <span class="cov8" title="1">{
+        certStorePath := filepath.Join(s.persistDir, "cert-store.json")
+
+        // Check if file exists
+        if _, err := os.Stat(certStorePath); os.IsNotExist(err) </span><span class="cov8" title="1">{
+                return nil // No existing store to load
+        }</span>
+
+        <span class="cov8" title="1">data, err := os.ReadFile(certStorePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to read certificate store: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if len(data) == 0 </span><span class="cov0" title="0">{
+                return nil // Empty file, nothing to load
+        }</span>
+
+        <span class="cov8" title="1">if err := json.Unmarshal(data, &amp;s.certs); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to unmarshal certificate store: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// SPDX-License-Identifier: CC0-1.0
+
+package ca
+
+import (
+        "bytes"
+        "crypto/tls"
+        "crypto/x509"
+        "encoding/json"
+        "encoding/pem"
+        "fmt"
+        "io"
+        "log/slog"
+        "net/http"
+        "net/url"
+        "strings"
+
+        "github.com/nzions/sharedgolibs/pkg/util"
+        "google.golang.org/grpc"
+        "google.golang.org/grpc/credentials"
+)
+
+// Transport error types for UpdateTransport function
+var (
+        // ErrNoCAURL is returned when SGL_CA environment variable is not set
+        ErrNoCAURL = fmt.Errorf("SGL_CA environment variable not set")
+
+        // ErrInvalidCAURL is returned when SGL_CA environment variable is not a valid URL
+        ErrInvalidCAURL = fmt.Errorf("SGL_CA environment variable is not a valid URL")
+
+        // ErrUnsupportedScheme is returned when SGL_CA URL uses an unsupported scheme
+        ErrUnsupportedScheme = fmt.Errorf("SGL_CA URL must use http or https scheme")
+
+        // ErrCARequest is returned when the HTTP request to the CA server fails
+        ErrCARequest = fmt.Errorf("failed to request CA certificate")
+
+        // ErrCAResponse is returned when reading the CA response body fails
+        ErrCAResponse = fmt.Errorf("failed to read CA certificate response")
+
+        // ErrCertParse is returned when the CA certificate cannot be parsed
+        ErrCertParse = fmt.Errorf("failed to parse CA certificate")
+
+        // ErrUnauthorized is returned when API key authentication fails
+        ErrUnauthorized = fmt.Errorf("unauthorized: invalid or missing API key")
+)
+
+// validateCAURL validates that the CA URL is properly formatted
+func validateCAURL(caURL string) error <span class="cov8" title="1">{
+        if caURL == "" </span><span class="cov8" title="1">{
+                return ErrNoCAURL
+        }</span>
+
+        // Parse the URL to validate format
+        <span class="cov8" title="1">parsedURL, err := url.Parse(caURL)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("%w: %v (URL: %q)", ErrInvalidCAURL, err, caURL)
+        }</span>
+
+        // Check that scheme is http or https
+        <span class="cov8" title="1">scheme := strings.ToLower(parsedURL.Scheme)
+        if scheme != "http" &amp;&amp; scheme != "https" </span><span class="cov8" title="1">{
+                return fmt.Errorf("%w: got %q, expected http or https (URL: %q)", ErrUnsupportedScheme, parsedURL.Scheme, caURL)
+        }</span>
+
+        // Check that host is present
+        <span class="cov8" title="1">if parsedURL.Host == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("%w: missing host (URL: %q)", ErrInvalidCAURL, caURL)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// getValidatedCAURL gets the CA URL from environment and validates it
+func getValidatedCAURL() (string, error) <span class="cov8" title="1">{
+        caURL := util.MustGetEnv("SGL_CA", "")
+        if err := validateCAURL(caURL); err != nil </span><span class="cov8" title="1">{
+                return "", err
+        }</span>
+        <span class="cov8" title="1">return caURL, nil</span>
+}
+
+// UpdateTransport configures the default HTTP client to trust a CA certificate.
+// Uses the SGL_CA environment variable to determine the CA server URL.
+// Optionally uses SGL_CA_API_KEY environment variable for authentication.
+func UpdateTransport() error <span class="cov8" title="1">{
+        caURL, err := getValidatedCAURL()
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return updateTransportWithCA(caURL)</span>
+}
+
+// UpdateTransportOnlyIf configures the default HTTP client to trust a CA certificate
+// only if the SGL_CA environment variable is set. If SGL_CA is not set, this function
+// returns nil without error. If SGL_CA is set but the CA cannot be reached or configured,
+// it returns an error.
+func UpdateTransportOnlyIf() error <span class="cov0" title="0">{
+        caURL := util.MustGetEnv("SGL_CA", "")
+        if caURL == "" </span><span class="cov0" title="0">{
+                // SGL_CA is not set, do nothing
+                return nil
+        }</span>
+
+        // Validate the URL since it's set
+        <span class="cov0" title="0">if err := validateCAURL(caURL); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">slog.Info("Updating HTTP transport to trust CA", "url", caURL)
+        return updateTransportWithCA(caURL)</span>
+}
+
+// updateTransportWithCA handles the actual transport update logic
+func updateTransportWithCA(caURL string) error <span class="cov8" title="1">{
+        // Create request with optional API key
+        req, err := http.NewRequest("GET", caURL+"/ca", nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("%w: %v", ErrCARequest, err)
+        }</span>
+
+        // Add API key if configured
+        <span class="cov8" title="1">apiKey := util.MustGetEnv("SGL_CA_API_KEY", "")
+        if apiKey != "" </span><span class="cov8" title="1">{
+                req.Header.Set("X-API-Key", apiKey)
+        }</span>
+
+        // Make the request
+        <span class="cov8" title="1">resp, err := http.DefaultClient.Do(req)
+        if err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("%w: %v", ErrCARequest, err)
+        }</span>
+        <span class="cov8" title="1">defer resp.Body.Close()
+
+        if resp.StatusCode == http.StatusUnauthorized </span><span class="cov8" title="1">{
+                return ErrUnauthorized
+        }</span>
+
+        <span class="cov8" title="1">if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return fmt.Errorf("%w: HTTP %d", ErrCARequest, resp.StatusCode)
+        }</span>
+
+        // Read the CA certificate
+        <span class="cov8" title="1">caCertPEM, err := io.ReadAll(resp.Body)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("%w: %v", ErrCAResponse, err)
+        }</span>
+
+        // Parse the PEM-encoded CA certificate
+        <span class="cov8" title="1">block, _ := pem.Decode(caCertPEM)
+        if block == nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("%w: failed to parse PEM block", ErrCertParse)
+        }</span>
+
+        <span class="cov8" title="1">caCertParsed, err := x509.ParseCertificate(block.Bytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("%w: %v", ErrCertParse, err)
+        }</span>
+
+        // Create a new certificate pool and add the CA certificate
+        <span class="cov8" title="1">caCertPool := x509.NewCertPool()
+        caCertPool.AddCert(caCertParsed)
+
+        // Create a custom transport that trusts the CA certificate
+        transport := &amp;http.Transport{
+                TLSClientConfig: &amp;tls.Config{
+                        RootCAs: caCertPool,
+                },
+        }
+
+        // Replace BOTH the default HTTP client's transport AND the default transport
+        // This ensures that both direct usage of http.DefaultClient and libraries that
+        // create clients based on http.DefaultTransport will trust our CA
+        http.DefaultClient.Transport = transport
+        http.DefaultTransport = transport
+
+        return nil</span>
+}
+
+// RequestCertificate requests a certificate from the CA server for the given service
+func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error) <span class="cov8" title="1">{
+        caURL, err := getValidatedCAURL()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Create certificate request
+        <span class="cov8" title="1">certReq := &amp;CertRequest{
+                ServiceName: serviceName,
+                ServiceIP:   serviceIP,
+                Domains:     domains,
+        }
+
+        // Create HTTP request
+        req, err := createCertRequest(caURL+"/cert", certReq)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
+        }</span>
+
+        // Add API key if configured
+        <span class="cov8" title="1">apiKey := util.MustGetEnv("SGL_CA_API_KEY", "")
+        if apiKey != "" </span><span class="cov8" title="1">{
+                req.Header.Set("X-API-Key", apiKey)
+        }</span>
+
+        // Make the request
+        <span class="cov8" title="1">resp, err := http.DefaultClient.Do(req)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
+        }</span>
+        <span class="cov8" title="1">defer resp.Body.Close()
+
+        // Check for unauthorized response
+        if resp.StatusCode == http.StatusUnauthorized </span><span class="cov8" title="1">{
+                return nil, ErrUnauthorized
+        }</span>
+
+        <span class="cov8" title="1">if resp.StatusCode != http.StatusOK </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("%w: server returned status %d", ErrCARequest, resp.StatusCode)
+        }</span>
+
+        <span class="cov8" title="1">var certResp CertResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;certResp); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: %v", ErrCAResponse, err)
+        }</span>
+
+        <span class="cov8" title="1">return &amp;certResp, nil</span>
+}
+
+// CreateSecureHTTPSServer creates an HTTPS server with certificates from the CA.
+// This is a convenience method that requests certificates and returns a configured server.
+func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*http.Server, error) <span class="cov8" title="1">{
+        // Request certificate from CA
+        certResp, err := RequestCertificate(serviceName, serviceIP, domains)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("failed to request certificate: %w", err)
+        }</span>
+
+        // Parse the certificate and key
+        <span class="cov8" title="1">cert, err := tls.X509KeyPair([]byte(certResp.Certificate), []byte(certResp.PrivateKey))
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse certificate: %w", err)
+        }</span>
+
+        // Create TLS config
+        <span class="cov8" title="1">tlsConfig := &amp;tls.Config{
+                Certificates: []tls.Certificate{cert},
+        }
+
+        // Create HTTPS server
+        server := &amp;http.Server{
+                Addr:      ":" + port,
+                Handler:   handler,
+                TLSConfig: tlsConfig,
+        }
+
+        return server, nil</span>
+}
+
+// CreateSecureGRPCServer creates a gRPC server with certificates from the CA.
+// This is a convenience method that requests certificates and returns a configured server.
+func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string, opts ...grpc.ServerOption) (*grpc.Server, error) <span class="cov0" title="0">{
+        // Request certificate from CA
+        certResp, err := RequestCertificate(serviceName, serviceIP, domains)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to request certificate: %w", err)
+        }</span>
+
+        // Parse the certificate and key
+        <span class="cov0" title="0">cert, err := tls.X509KeyPair([]byte(certResp.Certificate), []byte(certResp.PrivateKey))
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse certificate: %w", err)
+        }</span>
+
+        // Create TLS credentials
+        <span class="cov0" title="0">creds := credentials.NewTLS(&amp;tls.Config{
+                Certificates: []tls.Certificate{cert},
+        })
+
+        // Add TLS credentials to the options
+        opts = append(opts, grpc.Creds(creds))
+
+        // Create gRPC server
+        server := grpc.NewServer(opts...)
+
+        return server, nil</span>
+}
+
+// CreateGRPCCredentials returns gRPC TLS credentials using CA certificates.
+// This is a convenience method for clients that need to connect to gRPC servers with CA-issued certificates.
+func CreateGRPCCredentials() (credentials.TransportCredentials, error) <span class="cov0" title="0">{
+        caURL, err := getValidatedCAURL()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Create request to get CA certificate
+        <span class="cov0" title="0">req, err := http.NewRequest("GET", caURL+"/ca", nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
+        }</span>
+
+        // Add API key if configured
+        <span class="cov0" title="0">apiKey := util.MustGetEnv("SGL_CA_API_KEY", "")
+        if apiKey != "" </span><span class="cov0" title="0">{
+                req.Header.Set("X-API-Key", apiKey)
+        }</span>
+
+        // Make the request
+        <span class="cov0" title="0">resp, err := http.DefaultClient.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: %v", ErrCARequest, err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode == http.StatusUnauthorized </span><span class="cov0" title="0">{
+                return nil, ErrUnauthorized
+        }</span>
+
+        <span class="cov0" title="0">if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: HTTP %d", ErrCARequest, resp.StatusCode)
+        }</span>
+
+        // Read the CA certificate
+        <span class="cov0" title="0">caCertPEM, err := io.ReadAll(resp.Body)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: %v", ErrCAResponse, err)
+        }</span>
+
+        // Parse the PEM-encoded CA certificate
+        <span class="cov0" title="0">block, _ := pem.Decode(caCertPEM)
+        if block == nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: failed to parse PEM block", ErrCertParse)
+        }</span>
+
+        <span class="cov0" title="0">caCertParsed, err := x509.ParseCertificate(block.Bytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("%w: %v", ErrCertParse, err)
+        }</span>
+
+        // Create a new certificate pool and add the CA certificate
+        <span class="cov0" title="0">caCertPool := x509.NewCertPool()
+        caCertPool.AddCert(caCertParsed)
+
+        // Create TLS credentials
+        creds := credentials.NewTLS(&amp;tls.Config{
+                RootCAs: caCertPool,
+        })
+
+        return creds, nil</span>
+}
+
+// UpdateGRPCDialOptions updates default gRPC dial options to trust CA certificates.
+// This is a convenience method for clients that need to dial gRPC servers with CA-issued certificates.
+func UpdateGRPCDialOptions() ([]grpc.DialOption, error) <span class="cov0" title="0">{
+        // Get gRPC credentials
+        creds, err := CreateGRPCCredentials()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return []grpc.DialOption{
+                grpc.WithTransportCredentials(creds),
+        }, nil</span>
+}
+
+// createCertRequest creates a JSON request for certificate generation
+func createCertRequest(url string, certReq *CertRequest) (*http.Request, error) <span class="cov8" title="1">{
+        var buf bytes.Buffer
+        if err := json.NewEncoder(&amp;buf).Encode(certReq); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">req, err := http.NewRequest("POST", url, &amp;buf)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">req.Header.Set("Content-Type", "application/json")
+        return req, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

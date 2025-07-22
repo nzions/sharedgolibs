@@ -54,6 +54,7 @@ func TestNewServer(t *testing.T) {
 			if !tt.wantError {
 				if server == nil {
 					t.Error("NewServer() returned nil server")
+					return
 				}
 				if server.ca == nil {
 					t.Error("Server CA is nil")
@@ -536,4 +537,88 @@ func TestServerAPIKeyProtectionWithQueryParam(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServerStartAndLifecycle(t *testing.T) {
+	// Test GetCA method
+	t.Run("GetCA returns underlying CA instance", func(t *testing.T) {
+		server, err := NewServer(&ServerConfig{
+			Port:     "18093",
+			CAConfig: DefaultCAConfig(),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create test server: %v", err)
+		}
+
+		ca := server.GetCA()
+		if ca == nil {
+			t.Error("GetCA() returned nil")
+		}
+
+		// Verify it's the same CA instance
+		if server.ca != ca {
+			t.Error("GetCA() returned different CA instance than expected")
+		}
+	})
+
+	// Test server configuration validation
+	t.Run("Server configuration validation", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			config    *ServerConfig
+			wantError bool
+		}{
+			{
+				name:      "Nil config uses defaults",
+				config:    nil,
+				wantError: false,
+			},
+			{
+				name: "Valid custom config",
+				config: &ServerConfig{
+					Port:      "18094",
+					CAConfig:  DefaultCAConfig(),
+					EnableGUI: true,
+					GUIAPIKey: "test-key",
+				},
+				wantError: false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				server, err := NewServer(tt.config)
+				if (err != nil) != tt.wantError {
+					t.Errorf("NewServer() error = %v, wantError %v", err, tt.wantError)
+					return
+				}
+				if !tt.wantError && server == nil {
+					t.Error("NewServer() returned nil server without error")
+				}
+			})
+		}
+	})
+
+	// Test server startup validation
+	t.Run("Server startup validation", func(t *testing.T) {
+		server, err := NewServer(&ServerConfig{
+			Port:      "18095",
+			CAConfig:  DefaultCAConfig(),
+			EnableGUI: true,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create test server: %v", err)
+		}
+
+		// Verify server properties are set correctly
+		if server.port != "18095" {
+			t.Errorf("Expected port 18095, got %s", server.port)
+		}
+		if server.ca == nil {
+			t.Error("Server CA is nil")
+		}
+		if !server.enableGUI {
+			t.Error("GUI should be enabled when explicitly set")
+		}
+	})
 }

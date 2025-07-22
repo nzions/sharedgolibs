@@ -100,7 +100,7 @@ func (s *Server) Start() error {
 	// Web UI handlers (only if GUI is enabled)
 	if s.enableGUI && s.gui != nil {
 		// Apply API key middleware if configured
-		var dashboardHandler, certsHandler, generateHandler, apiHandler, certDetailsHandler, downloadCAHandler, downloadCAKeyHandler, downloadCertHandler, downloadCertKeyHandler, certsTableHandler, logStreamHandler, staticHandler http.Handler
+		var dashboardHandler, certsHandler, generateHandler, apiHandler, certDetailsHandler, downloadCAHandler, downloadCAKeyHandler, certsTableHandler, logStreamHandler, staticHandler http.Handler
 		dashboardHandler = http.HandlerFunc(s.gui.HandleDashboard)
 		certsHandler = http.HandlerFunc(s.gui.HandleCertificates)
 		generateHandler = http.HandlerFunc(s.gui.HandleGenerate)
@@ -108,8 +108,6 @@ func (s *Server) Start() error {
 		certDetailsHandler = http.HandlerFunc(s.gui.HandleCertDetails)
 		downloadCAHandler = http.HandlerFunc(s.gui.HandleDownloadCA)
 		downloadCAKeyHandler = http.HandlerFunc(s.gui.HandleDownloadCAKey)
-		downloadCertHandler = http.HandlerFunc(s.gui.HandleDownloadCert)
-		downloadCertKeyHandler = http.HandlerFunc(s.gui.HandleDownloadCertKey)
 		certsTableHandler = http.HandlerFunc(s.gui.HandleCertsTable)
 		logStreamHandler = http.HandlerFunc(s.gui.HandleLogStream)
 		staticHandler = http.HandlerFunc(s.gui.HandleStatic)
@@ -122,11 +120,10 @@ func (s *Server) Start() error {
 			certDetailsHandler = middleware.WithAPIKey(s.guiAPIKey, certDetailsHandler)
 			downloadCAHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAHandler)
 			downloadCAKeyHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCAKeyHandler)
-			downloadCertHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCertHandler)
-			downloadCertKeyHandler = middleware.WithAPIKey(s.guiAPIKey, downloadCertKeyHandler)
 			certsTableHandler = middleware.WithAPIKey(s.guiAPIKey, certsTableHandler)
 			logStreamHandler = middleware.WithAPIKey(s.guiAPIKey, logStreamHandler)
 			// Note: Static files typically don't require API key authentication
+			// Note: Certificate downloads (/cert/) are handled by special function below
 		}
 
 		http.Handle("/", dashboardHandler)
