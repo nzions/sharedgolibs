@@ -633,11 +633,11 @@ func TestUpdateTransportOnlyIf(t *testing.T) {
 	originalTransport := http.DefaultClient.Transport
 
 	tests := []struct {
-		name             string
-		setupEnv         func()
-		wantError        bool
-		wantLogMsg       bool
-		expectTransport  bool // Whether transport should be modified
+		name            string
+		setupEnv        func()
+		wantError       bool
+		wantLogMsg      bool
+		expectTransport bool // Whether transport should be modified
 	}{
 		{
 			name: "No SGL_CA environment variable set",
@@ -892,7 +892,7 @@ func TestGetServiceCertificate(t *testing.T) {
 		{
 			name:        "Valid certificate request to unreachable server",
 			serviceName: "test-client-service",
-			serviceIP:   "192.168.1.100", 
+			serviceIP:   "192.168.1.100",
 			domains:     []string{"client.test.local"},
 			wantError:   true, // Expected to fail because default server isn't running
 		},
