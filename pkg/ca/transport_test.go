@@ -629,11 +629,15 @@ func TestTransportConvenienceMethodsIntegration(t *testing.T) {
 }
 
 func TestUpdateTransportOnlyIf(t *testing.T) {
+	// Save original transport to restore after tests
+	originalTransport := http.DefaultClient.Transport
+
 	tests := []struct {
-		name       string
-		setupEnv   func()
-		wantError  bool
-		wantLogMsg bool
+		name             string
+		setupEnv         func()
+		wantError        bool
+		wantLogMsg       bool
+		expectTransport  bool // Whether transport should be modified
 	}{
 		{
 			name: "No SGL_CA environment variable set",
@@ -641,17 +645,49 @@ func TestUpdateTransportOnlyIf(t *testing.T) {
 				os.Unsetenv("SGL_CA")
 				os.Unsetenv("SGL_CA_API_KEY")
 			},
-			wantError:  false,
-			wantLogMsg: false,
+			wantError:       false,
+			wantLogMsg:      false,
+			expectTransport: false, // No change to transport
 		},
 		{
-			name: "Invalid SGL_CA URL",
+			name: "Empty SGL_CA environment variable",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:       false,
+			wantLogMsg:      false,
+			expectTransport: false, // No change to transport
+		},
+		{
+			name: "Invalid SGL_CA URL format",
 			setupEnv: func() {
 				os.Setenv("SGL_CA", "invalid-url")
 				os.Unsetenv("SGL_CA_API_KEY")
 			},
-			wantError:  true,
-			wantLogMsg: false,
+			wantError:       true,
+			wantLogMsg:      false,
+			expectTransport: false,
+		},
+		{
+			name: "SGL_CA URL without scheme",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "localhost:8090")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:       true,
+			wantLogMsg:      false,
+			expectTransport: false,
+		},
+		{
+			name: "SGL_CA URL with unsupported scheme",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "ftp://localhost:8090")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:       true,
+			wantLogMsg:      false,
+			expectTransport: false,
 		},
 		{
 			name: "Valid SGL_CA but unreachable server",
@@ -659,19 +695,48 @@ func TestUpdateTransportOnlyIf(t *testing.T) {
 				os.Setenv("SGL_CA", "http://localhost:9999")
 				os.Unsetenv("SGL_CA_API_KEY")
 			},
-			wantError:  true,
-			wantLogMsg: true,
+			wantError:       true,
+			wantLogMsg:      true,
+			expectTransport: false,
+		},
+		{
+			name: "Valid HTTPS SGL_CA but unreachable server",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "https://localhost:9999")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:       true,
+			wantLogMsg:      true,
+			expectTransport: false,
+		},
+		{
+			name: "Valid SGL_CA with API key but unreachable server",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "http://localhost:9998")
+				os.Setenv("SGL_CA_API_KEY", "test-api-key")
+			},
+			wantError:       true,
+			wantLogMsg:      true,
+			expectTransport: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Reset transport to original state before each test
+			http.DefaultClient.Transport = originalTransport
+
 			// Setup environment
 			tt.setupEnv()
 			defer func() {
 				os.Unsetenv("SGL_CA")
 				os.Unsetenv("SGL_CA_API_KEY")
+				// Restore original transport after test
+				http.DefaultClient.Transport = originalTransport
 			}()
+
+			// Store reference to transport before calling function
+			transportBefore := http.DefaultClient.Transport
 
 			// Call UpdateTransportOnlyIf
 			err := UpdateTransportOnlyIf()
@@ -681,15 +746,39 @@ func TestUpdateTransportOnlyIf(t *testing.T) {
 				t.Errorf("UpdateTransportOnlyIf() error = %v, wantError %v", err, tt.wantError)
 			}
 
-			// For the successful case (no SGL_CA), verify no error
-			if !tt.wantError && err != nil {
-				t.Errorf("UpdateTransportOnlyIf() should not error when SGL_CA is not set, got: %v", err)
+			// Check transport modification expectation
+			transportAfter := http.DefaultClient.Transport
+			transportChanged := transportBefore != transportAfter
+
+			if tt.expectTransport && !transportChanged {
+				t.Error("Expected transport to be modified, but it wasn't")
+			} else if !tt.expectTransport && transportChanged {
+				t.Error("Expected transport to remain unchanged, but it was modified")
+			}
+
+			// Verify transport configuration when it should be modified
+			if tt.expectTransport && transportChanged {
+				if transport, ok := transportAfter.(*http.Transport); ok {
+					if transport.TLSClientConfig == nil {
+						t.Error("Expected TLS config to be set when transport is modified")
+					} else if transport.TLSClientConfig.RootCAs == nil {
+						t.Error("Expected Root CAs to be set when transport is modified")
+					}
+				} else {
+					t.Error("Expected modified transport to be *http.Transport type")
+				}
 			}
 		})
 	}
 }
 
 func TestUpdateTransportOnlyIfWithRealServer(t *testing.T) {
+	// Save original transport to restore after test
+	originalTransport := http.DefaultClient.Transport
+	defer func() {
+		http.DefaultClient.Transport = originalTransport
+	}()
+
 	// Start a test CA server
 	server, err := NewServer(&ServerConfig{
 		Port:     "18091",
@@ -708,16 +797,88 @@ func TestUpdateTransportOnlyIfWithRealServer(t *testing.T) {
 	// Wait for server to start
 	time.Sleep(100 * time.Millisecond)
 
-	// Test with valid server
-	t.Run("Valid SGL_CA with running server", func(t *testing.T) {
-		os.Setenv("SGL_CA", "http://localhost:18091")
-		defer os.Unsetenv("SGL_CA")
+	tests := []struct {
+		name            string
+		setupEnv        func()
+		wantError       bool
+		expectTransport bool
+	}{
+		{
+			name: "Valid SGL_CA with running server",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "http://localhost:18091")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:       false,
+			expectTransport: true,
+		},
+		{
+			name: "Valid SGL_CA with API key and running server",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "http://localhost:18091")
+				os.Setenv("SGL_CA_API_KEY", "test-key")
+			},
+			wantError:       false,
+			expectTransport: true,
+		},
+		{
+			name: "Valid HTTPS SGL_CA with running server",
+			setupEnv: func() {
+				os.Setenv("SGL_CA", "https://localhost:18091")
+				os.Unsetenv("SGL_CA_API_KEY")
+			},
+			wantError:       true, // HTTPS will fail because test server uses HTTP
+			expectTransport: false,
+		},
+	}
 
-		err := UpdateTransportOnlyIf()
-		if err != nil {
-			t.Errorf("UpdateTransportOnlyIf() with valid server should not error, got: %v", err)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset transport before each test
+			http.DefaultClient.Transport = originalTransport
+
+			// Setup environment
+			tt.setupEnv()
+			defer func() {
+				os.Unsetenv("SGL_CA")
+				os.Unsetenv("SGL_CA_API_KEY")
+			}()
+
+			// Store reference to transport before calling function
+			transportBefore := http.DefaultClient.Transport
+
+			// Call UpdateTransportOnlyIf
+			err := UpdateTransportOnlyIf()
+
+			// Check error expectation
+			if (err != nil) != tt.wantError {
+				t.Errorf("UpdateTransportOnlyIf() error = %v, wantError %v", err, tt.wantError)
+			}
+
+			// Check transport modification expectation
+			transportAfter := http.DefaultClient.Transport
+			transportChanged := transportBefore != transportAfter
+
+			if tt.expectTransport && !transportChanged {
+				t.Error("Expected transport to be modified, but it wasn't")
+			} else if !tt.expectTransport && transportChanged {
+				t.Error("Expected transport to remain unchanged, but it was modified")
+			}
+
+			// For successful cases, verify the transport configuration
+			if !tt.wantError && tt.expectTransport {
+				if transport, ok := transportAfter.(*http.Transport); ok {
+					if transport.TLSClientConfig == nil {
+						t.Error("Expected TLS config to be set")
+					} else if transport.TLSClientConfig.RootCAs == nil {
+						t.Error("Expected Root CAs to be set")
+					}
+				} else {
+					t.Error("Expected transport to be *http.Transport type")
+				}
+			}
+		})
+	}
 }
 
 func TestGetServiceCertificate(t *testing.T) {
@@ -773,4 +934,61 @@ func TestGetServiceCertificate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateTransportOnlyIfConditionalBehavior(t *testing.T) {
+	// Save original transport to restore after test
+	originalTransport := http.DefaultClient.Transport
+	defer func() {
+		http.DefaultClient.Transport = originalTransport
+	}()
+
+	t.Run("Function respects SGL_CA presence", func(t *testing.T) {
+		// Test 1: No SGL_CA should not modify transport
+		os.Unsetenv("SGL_CA")
+		os.Unsetenv("SGL_CA_API_KEY")
+
+		transportBefore := http.DefaultClient.Transport
+		err := UpdateTransportOnlyIf()
+		if err != nil {
+			t.Errorf("UpdateTransportOnlyIf() should not error when SGL_CA unset: %v", err)
+		}
+		if http.DefaultClient.Transport != transportBefore {
+			t.Error("Transport should not be modified when SGL_CA is unset")
+		}
+
+		// Test 2: Setting SGL_CA should attempt to modify transport (even if it fails due to bad URL)
+		os.Setenv("SGL_CA", "http://invalid-test-url:99999")
+		defer os.Unsetenv("SGL_CA")
+
+		transportBefore = http.DefaultClient.Transport
+		err = UpdateTransportOnlyIf()
+		// We expect an error because the URL is unreachable, but the attempt should be made
+		if err == nil {
+			t.Error("UpdateTransportOnlyIf() should error with unreachable URL")
+		}
+		// Transport should remain unchanged on error
+		if http.DefaultClient.Transport != transportBefore {
+			t.Error("Transport should not be modified when update fails")
+		}
+	})
+
+	t.Run("Function handles edge cases in environment variables", func(t *testing.T) {
+		// Reset transport
+		http.DefaultClient.Transport = originalTransport
+
+		// Test with whitespace-only SGL_CA
+		os.Setenv("SGL_CA", "   ")
+		defer os.Unsetenv("SGL_CA")
+
+		transportBefore := http.DefaultClient.Transport
+		err := UpdateTransportOnlyIf()
+		// Should error because whitespace-only URL fails validation
+		if err == nil {
+			t.Error("UpdateTransportOnlyIf() should error with whitespace-only SGL_CA because it fails URL validation")
+		}
+		if http.DefaultClient.Transport != transportBefore {
+			t.Error("Transport should not be modified when URL validation fails")
+		}
+	})
 }
