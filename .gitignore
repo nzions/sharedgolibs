@@ -10,6 +10,9 @@ bin/
 build/
 dist/
 
+# Vendor dependencies
+vendor/
+
 # Test binary, built with `go test -c`
 *.test
 
