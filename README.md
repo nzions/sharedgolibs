@@ -63,6 +63,18 @@ Environment variable utilities and common helper functions.
 - Type-safe environment variable parsing
 - Configuration management utilities
 
+### 🧹 Binary Cleaner (v0.1.0)
+Intelligent binary file detection and removal tool for cleaning up build artifacts and compiled binaries.
+
+**Key Features:**
+- **Smart Detection**: Identifies Mach-O and ELF binaries by analyzing file headers
+- **Safety First**: Only examines executable files, validates headers before removal
+- **Flexible Search**: Recursive directory scanning with configurable depth
+- **Dry Run Mode**: Preview operations without actually removing files
+- **Format Support**: Mach-O (macOS) and ELF (Linux/Unix) binaries
+- **CLI Tool**: Full-featured command-line interface with verbose output
+- **VS Code Integration**: Built-in tasks for development workflow
+
 ###  Auto Port (v0.1.0)
 Auto-generated port configurations from Docker Compose for consistent service discovery.
 
@@ -96,6 +108,40 @@ for _, service := range services {
     fmt.Printf("%s on port %d (%s) - %s\n", 
         service.Name, service.ExternalPort, service.Type, service.Status)
 }
+```
+
+### Binary Cleaner - Quick Start
+
+```go
+import "github.com/nzions/sharedgolibs/pkg/binarycleaner"
+
+// Create cleaner with safe defaults
+config := binarycleaner.Config{
+    Directory: "/path/to/clean",
+    DryRun:    true,  // Preview mode
+    Verbose:   true,  // Detailed output
+    Recursive: true,  // Search subdirectories
+}
+
+cleaner := binarycleaner.New(config)
+
+// Find and preview what would be removed
+err := cleaner.Clean()
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+**CLI Usage:**
+```bash
+# Build the tool
+go build -o bin/binarycleaner ./cmd/binarycleaner/
+
+# Preview cleanup (safe)
+./bin/binarycleaner --dry-run --verbose --recursive
+
+# Actually remove binaries
+./bin/binarycleaner --recursive --dir ./build
 ```
 
 ### Advanced Configuration
@@ -322,6 +368,62 @@ go build -o bin/servicemanager ./cmd/servicemanager/
 ./bin/servicemanager --version
 ./bin/servicemanager --help
 ```
+
+## VS Code Integration
+
+The project includes VS Code tasks for streamlined development. Access via `Cmd+Shift+P` → "Tasks: Run Task":
+
+### Available Tasks
+
+- **Build All CLI Tools**: Builds both servicemanager and binarycleaner tools
+- **Build Binary Cleaner**: Builds only the binary cleaner tool
+- **Build Service Manager**: Builds only the service manager tool  
+- **Test Binary Cleaner**: Runs unit tests for the binary cleaner package
+- **Run Binary Cleaner (Dry Run)**: Safely previews binary cleanup (auto-builds first)
+
+### Quick Development Workflow
+
+1. Make code changes
+2. Press `Cmd+Shift+P` 
+3. Type "Tasks: Run Task"
+4. Select "Test Binary Cleaner" to verify changes
+5. Select "Run Binary Cleaner (Dry Run)" to test functionality
+
+The tasks provide integrated development without leaving VS Code!
+
+### Setting Up VS Code Tasks
+
+The VS Code tasks are defined in `.vscode/tasks.json`. To add or modify tasks:
+
+1. **Create the directory** (if it doesn't exist):
+   ```bash
+   mkdir -p .vscode
+   ```
+
+2. **Edit tasks.json**:
+   ```json
+   {
+       "version": "2.0.0",
+       "tasks": [
+           {
+               "label": "Your Custom Task",
+               "type": "shell",
+               "command": "your-command-here",
+               "group": "build",
+               "isBackground": false
+           }
+       ]
+   }
+   ```
+
+3. **Task Properties**:
+   - `label`: Name shown in VS Code task picker
+   - `command`: Shell command to execute
+   - `group`: Task category (`build`, `test`, etc.)
+   - `isBackground`: Whether task runs continuously
+   - `dependsOn`: Run another task first
+
+4. **Access tasks**: `Cmd+Shift+P` → "Tasks: Configure Task" to edit
 
 ### Docker Compose Integration
 
