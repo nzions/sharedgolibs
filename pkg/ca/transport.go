@@ -286,7 +286,7 @@ func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertR
 
 // CreateSecureHTTPSServer creates an HTTPS server with certificates from the CA.
 // This is a convenience method that requests certificates from the CA server and
-// returns a configured HTTP server ready to serve HTTPS traffic.
+// returns a configured SecureHTTPSServer ready to serve HTTPS traffic.
 //
 // Environment Variables Used:
 //   - SGL_CA (required): CA server URL for certificate requests
@@ -299,8 +299,8 @@ func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertR
 //   - domains: Additional domain names to include in the certificate
 //   - handler: HTTP handler for the server
 //
-// Returns a configured *http.Server with TLS certificates, ready to call ListenAndServeTLS().
-func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*http.Server, error) {
+// Returns a configured *SecureHTTPSServer with TLS certificates, ready to call ListenAndServeTLS().
+func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*SecureHTTPSServer, error) {
 	// Request certificate from CA
 	certResp, err := RequestCertificate(serviceName, serviceIP, domains)
 	if err != nil {
@@ -325,7 +325,7 @@ func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []stri
 		TLSConfig: tlsConfig,
 	}
 
-	return server, nil
+	return NewSecureHTTPSServer(server), nil
 }
 
 // CreateSecureGRPCServer creates a gRPC server with certificates from the CA.

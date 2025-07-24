@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Version = "v1.4.0"
+	Version = "v1.5.0" // MINOR: HTTPS-only server enforcement, API returns SecureHTTPSServer
 )
 
 // CA represents a Certificate Authority with the ability to issue certificates
