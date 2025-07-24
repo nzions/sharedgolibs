@@ -1,0 +1,77 @@
+<!--
+  GoogleEmu Base Page Template
+  Usage: Complete page template with all required components
+-->
+
+<!DOCTYPE html>
+<html lang="en" data-theme="glassmorphism">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - GoogleEmu</title>
+    <link rel="stylesheet" href="/static/css/googleemu.css">
+    <style>
+        /* Page-specific styles can go here */
+            {
+                {
+                .CustomCSS
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Theme Switcher -->
+    <div class="ge-theme-switcher">
+        <select id="ge-theme-select">
+            <option value="glassmorphism">🌌 Glassmorphism</option>
+            <option value="professional">💼 Professional</option>
+            <option value="hacker">🖥️ Hacker</option>
+            <option value="puppies">🐕 Puppies</option>
+            <option value="weyland">🛸 Weyland-Yutani</option>
+        </select>
+    </div>
+
+    <!-- Auto-refresh Indicator (if enabled) -->
+    {{if .AutoRefresh}}
+    <div class="ge-auto-refresh">
+        🔄 Auto-refresh: <span class="ge-refresh-indicator">{{.RefreshInterval}}s</span>
+    </div>
+    {{end}}
+
+    <!-- Main Content Container -->
+    <div class="ge-container">
+        <!-- Page Header -->
+        <div class="ge-header ge-fade-in">
+            <h1>{{.Title}}</h1>
+            {{if .Subtitle}}<div class="subtitle">{{.Subtitle}}</div>{{end}}
+            {{if .Version}}<div class="version">v{{.Version}}</div>{{end}}
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="ge-fade-in">
+            {{.Content}}
+        </main>
+    </div>
+
+    <!-- Load JavaScript -->
+    <script src="/static/js/googleemu.js"></script>
+
+    <!-- Auto-refresh Script (if enabled) -->
+    {{if .AutoRefresh}}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ge = new GoogleEmuComponents();
+            ge.startAutoRefresh({{.RefreshInterval }});
+        });
+    </script>
+    {{end}}
+
+    <!-- Custom JavaScript -->
+    <script>
+        { {.CustomJS } }
+    </script>
+</body>
+
+</html>

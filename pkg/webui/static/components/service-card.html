@@ -1,0 +1,20 @@
+<!--
+  GoogleEmu Service Card Component Template
+  Usage: Include this template for displaying service status cards
+-->
+
+<template id="ge-service-card-template">
+    <div class="ge-service-card">
+        <h3>
+            <span class="ge-status-dot" data-status-dot></span>
+            <span data-service-name></span>
+        </h3>
+        <div class="service-info">
+            <span class="ge-status" data-status-badge></span>
+            <span class="port" data-port></span>
+            <a class="ge-btn ge-btn-primary ge-btn-sm" data-open-link style="display: none;">Open</a>
+        </div>
+        <p class="description" data-description style="display: none;"></p>
+        <div class="uptime" data-uptime style="display: none;"></div>
+    </div>
+</template>

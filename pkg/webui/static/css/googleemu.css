@@ -1,0 +1,865 @@
+/* 
+ * GoogleEmu Web Components Library
+ * Version: 1.0.0
+ * 
+ * A themeable component library for GoogleEmu frontend interfaces
+ * Supports multiple themes: glassmorphism, professional, hacker, puppies, weyland
+ */
+
+:root {
+    /* Base color system */
+    --ge-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --ge-font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+
+    /* Animation system */
+    --ge-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --ge-transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --ge-transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Spacing system */
+    --ge-space-xs: 4px;
+    --ge-space-sm: 8px;
+    --ge-space-md: 16px;
+    --ge-space-lg: 24px;
+    --ge-space-xl: 32px;
+    --ge-space-2xl: 48px;
+
+    /* Border radius system */
+    --ge-radius-sm: 6px;
+    --ge-radius-md: 8px;
+    --ge-radius-lg: 12px;
+    --ge-radius-xl: 16px;
+    --ge-radius-full: 9999px;
+
+    /* Shadow system */
+    --ge-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --ge-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --ge-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --ge-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --ge-shadow-glow: 0 0 20px rgba(102, 126, 234, 0.4);
+
+    /* Status colors (universal) */
+    --ge-success: #10b981;
+    --ge-warning: #f59e0b;
+    --ge-danger: #ef4444;
+    --ge-info: #3b82f6;
+}
+
+/* Theme: Glassmorphism (inspired by current portdash) */
+[data-theme="glassmorphism"] {
+    --ge-primary: #667eea;
+    --ge-secondary: #764ba2;
+    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+
+    --ge-bg-primary: var(--ge-gradient);
+    --ge-bg-secondary: rgba(255, 255, 255, 0.1);
+    --ge-bg-surface: rgba(255, 255, 255, 0.15);
+    --ge-bg-surface-hover: rgba(255, 255, 255, 0.25);
+
+    --ge-text-primary: rgba(255, 255, 255, 0.95);
+    --ge-text-secondary: rgba(255, 255, 255, 0.75);
+    --ge-text-muted: rgba(255, 255, 255, 0.6);
+    --ge-text-inverted: #1f2937;
+
+    --ge-border: rgba(255, 255, 255, 0.2);
+    --ge-border-hover: rgba(255, 255, 255, 0.3);
+
+    --ge-backdrop-filter: blur(10px);
+    --ge-glass-bg: rgba(255, 255, 255, 0.1);
+    --ge-glass-border: rgba(255, 255, 255, 0.2);
+}
+
+/* Theme: Professional (clean corporate look) */
+[data-theme="professional"] {
+    --ge-primary: #2563eb;
+    --ge-secondary: #1e40af;
+    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+
+    --ge-bg-primary: #f8fafc;
+    --ge-bg-secondary: #ffffff;
+    --ge-bg-surface: #ffffff;
+    --ge-bg-surface-hover: #f1f5f9;
+
+    --ge-text-primary: #0f172a;
+    --ge-text-secondary: #475569;
+    --ge-text-muted: #64748b;
+    --ge-text-inverted: #ffffff;
+
+    --ge-border: #e2e8f0;
+    --ge-border-hover: #cbd5e1;
+
+    --ge-backdrop-filter: none;
+    --ge-glass-bg: #ffffff;
+    --ge-glass-border: #e2e8f0;
+}
+
+/* Theme: Hacker (dark terminal aesthetic) */
+[data-theme="hacker"] {
+    --ge-primary: #00ff41;
+    --ge-secondary: #00cc33;
+    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #00e63a 0%, #00b82e 100%);
+
+    --ge-bg-primary: #0a0a0a;
+    --ge-bg-secondary: #1a1a1a;
+    --ge-bg-surface: #2a2a2a;
+    --ge-bg-surface-hover: #3a3a3a;
+
+    --ge-text-primary: #00ff41;
+    --ge-text-secondary: #80ff80;
+    --ge-text-muted: #408040;
+    --ge-text-inverted: #000000;
+
+    --ge-border: #00ff41;
+    --ge-border-hover: #00cc33;
+
+    --ge-backdrop-filter: none;
+    --ge-glass-bg: rgba(0, 255, 65, 0.1);
+    --ge-glass-border: rgba(0, 255, 65, 0.3);
+
+    /* Override font for hacker theme */
+    --ge-font-family: var(--ge-font-mono);
+}
+
+/* Theme: Puppies (fun and colorful) */
+[data-theme="puppies"] {
+    --ge-primary: #f59e0b;
+    --ge-secondary: #ef4444;
+    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #d97706 0%, #dc2626 100%);
+
+    --ge-bg-primary: linear-gradient(135deg, #fef3c7 0%, #fed7d7 50%, #ddd6fe 100%);
+    --ge-bg-secondary: #ffffff;
+    --ge-bg-surface: rgba(255, 255, 255, 0.9);
+    --ge-bg-surface-hover: rgba(255, 255, 255, 0.95);
+
+    --ge-text-primary: #374151;
+    --ge-text-secondary: #6b7280;
+    --ge-text-muted: #9ca3af;
+    --ge-text-inverted: #ffffff;
+
+    --ge-border: #f3f4f6;
+    --ge-border-hover: #e5e7eb;
+
+    --ge-backdrop-filter: blur(5px);
+    --ge-glass-bg: rgba(255, 255, 255, 0.8);
+    --ge-glass-border: rgba(251, 191, 36, 0.3);
+}
+
+/* Theme: Weyland-Yutani (retro-futuristic corporate terminal) */
+[data-theme="weyland"] {
+    --ge-primary: #00ff41;
+    --ge-secondary: #66ff66;
+    --ge-gradient: linear-gradient(135deg, #003d00 0%, #005500 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #005500 0%, #007700 100%);
+
+    --ge-bg-primary: #0a0a0a;
+    --ge-bg-secondary: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    --ge-bg-surface: linear-gradient(135deg, #111111 0%, #1e1e1e 100%);
+    --ge-bg-surface-hover: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+
+    --ge-text-primary: #00ff41;
+    --ge-text-secondary: #66ff66;
+    --ge-text-muted: #408040;
+    --ge-text-inverted: #000000;
+
+    --ge-border: #00ff41;
+    --ge-border-hover: #66ff66;
+
+    --ge-backdrop-filter: none;
+    --ge-glass-bg: rgba(0, 255, 65, 0.1);
+    --ge-glass-border: rgba(0, 255, 65, 0.3);
+
+    /* Special Weyland-Yutani styling */
+    --ge-font-family: 'IBM Plex Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    --ge-header-font: 'Orbitron', 'Arial Black', sans-serif;
+    --ge-glow: 0 0 10px #00ff41;
+    --ge-glow-strong: 0 0 20px #00ff41;
+    --ge-shadow-weyland: 0 0 20px rgba(0, 255, 65, 0.3), inset 0 1px 1px rgba(0, 255, 65, 0.1);
+}
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--ge-font-family);
+    background: var(--ge-bg-primary);
+    color: var(--ge-text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    transition: all var(--ge-transition-base);
+}
+
+/* Weyland-Yutani Theme Special Effects */
+[data-theme="weyland"] body {
+    overflow-x: hidden;
+}
+
+/* Scanlines effect for Weyland-Yutani theme */
+[data-theme="weyland"] body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(90deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 65, 0.03) 2px,
+            rgba(0, 255, 65, 0.03) 4px);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Enhanced header styling for Weyland-Yutani */
+[data-theme="weyland"] .ge-header {
+    border: 1px solid var(--ge-border);
+    box-shadow: var(--ge-shadow-weyland);
+    position: relative;
+}
+
+[data-theme="weyland"] .ge-header::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #00ff41, transparent, #00ff41);
+    border-radius: var(--ge-radius-lg);
+    z-index: -1;
+    opacity: 0.3;
+}
+
+[data-theme="weyland"] .ge-header h1 {
+    font-family: var(--ge-header-font);
+    text-shadow: var(--ge-glow);
+    letter-spacing: 2px;
+    font-weight: 900;
+}
+
+[data-theme="weyland"] .ge-header .subtitle {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.875rem;
+}
+
+/* Enhanced cards for Weyland-Yutani */
+[data-theme="weyland"] .ge-card {
+    border: 1px solid var(--ge-border);
+    box-shadow: var(--ge-shadow-weyland);
+}
+
+[data-theme="weyland"] .ge-card:hover {
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.4), inset 0 1px 1px rgba(0, 255, 65, 0.2);
+}
+
+/* Enhanced service cards for Weyland-Yutani */
+[data-theme="weyland"] .ge-service-card {
+    border: 1px solid var(--ge-glass-border);
+    box-shadow: var(--ge-shadow-weyland);
+    position: relative;
+}
+
+[data-theme="weyland"] .ge-service-card::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    border-radius: calc(var(--ge-radius-lg) - 2px);
+    pointer-events: none;
+}
+
+[data-theme="weyland"] .ge-service-card:hover {
+    box-shadow: 0 0 25px rgba(0, 255, 65, 0.5), inset 0 1px 1px rgba(0, 255, 65, 0.2);
+}
+
+/* Enhanced buttons for Weyland-Yutani */
+[data-theme="weyland"] .ge-btn {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="weyland"] .ge-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+[data-theme="weyland"] .ge-btn:hover::before {
+    left: 100%;
+}
+
+[data-theme="weyland"] .ge-btn:hover {
+    text-shadow: var(--ge-glow);
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.7);
+}
+
+/* Core layout components */
+.ge-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--ge-space-lg);
+}
+
+.ge-container-full {
+    width: 100%;
+    padding: var(--ge-space-lg);
+}
+
+.ge-container-sm {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: var(--ge-space-lg);
+}
+
+/* Glass morphism card component */
+.ge-card {
+    background: var(--ge-glass-bg);
+    border: 1px solid var(--ge-glass-border);
+    border-radius: var(--ge-radius-lg);
+    padding: var(--ge-space-lg);
+    margin: var(--ge-space-md) 0;
+    backdrop-filter: var(--ge-backdrop-filter);
+    box-shadow: var(--ge-shadow-lg);
+    transition: all var(--ge-transition-base);
+}
+
+.ge-card:hover {
+    background: var(--ge-bg-surface-hover);
+    border-color: var(--ge-border-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--ge-shadow-xl);
+}
+
+.ge-card-compact {
+    padding: var(--ge-space-md);
+}
+
+.ge-card-spacious {
+    padding: var(--ge-space-xl);
+}
+
+/* Header component */
+.ge-header {
+    text-align: center;
+    margin-bottom: var(--ge-space-2xl);
+    padding: var(--ge-space-xl);
+    background: var(--ge-glass-bg);
+    border-radius: var(--ge-radius-lg);
+    backdrop-filter: var(--ge-backdrop-filter);
+    border: 1px solid var(--ge-glass-border);
+}
+
+.ge-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: var(--ge-space-sm);
+    color: var(--ge-text-primary);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ge-header .subtitle {
+    font-size: 1.125rem;
+    color: var(--ge-text-secondary);
+    margin-bottom: var(--ge-space-sm);
+}
+
+.ge-header .version {
+    font-size: 0.875rem;
+    color: var(--ge-text-muted);
+    font-weight: 500;
+}
+
+/* Button components */
+.ge-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ge-space-sm);
+    padding: var(--ge-space-sm) var(--ge-space-md);
+    border: none;
+    border-radius: var(--ge-radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--ge-transition-base);
+    position: relative;
+    overflow: hidden;
+}
+
+.ge-btn-primary {
+    background: var(--ge-gradient);
+    color: var(--ge-text-inverted);
+    box-shadow: var(--ge-shadow-md);
+}
+
+.ge-btn-primary:hover {
+    background: var(--ge-gradient-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--ge-shadow-lg);
+}
+
+.ge-btn-secondary {
+    background: var(--ge-bg-surface);
+    color: var(--ge-text-primary);
+    border: 1px solid var(--ge-border);
+}
+
+.ge-btn-secondary:hover {
+    background: var(--ge-bg-surface-hover);
+    border-color: var(--ge-border-hover);
+}
+
+.ge-btn-success {
+    background: var(--ge-success);
+    color: white;
+}
+
+.ge-btn-warning {
+    background: var(--ge-warning);
+    color: white;
+}
+
+.ge-btn-danger {
+    background: var(--ge-danger);
+    color: white;
+}
+
+.ge-btn-sm {
+    padding: var(--ge-space-xs) var(--ge-space-sm);
+    font-size: 0.75rem;
+}
+
+.ge-btn-lg {
+    padding: var(--ge-space-md) var(--ge-space-lg);
+    font-size: 1rem;
+}
+
+/* Status indicators */
+.ge-status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ge-space-xs);
+    padding: var(--ge-space-xs) var(--ge-space-sm);
+    border-radius: var(--ge-radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.ge-status-running {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--ge-success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.ge-status-stopped {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--ge-danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ge-status-warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--ge-warning);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.ge-status-info {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--ge-info);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Status dots for minimal indicators */
+.ge-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: var(--ge-space-xs);
+}
+
+.ge-status-dot-running {
+    background: var(--ge-success);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.ge-status-dot-stopped {
+    background: var(--ge-danger);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.ge-status-dot-warning {
+    background: var(--ge-warning);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+/* Grid layouts */
+.ge-grid {
+    display: grid;
+    gap: var(--ge-space-md);
+}
+
+.ge-grid-auto {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.ge-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.ge-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.ge-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 768px) {
+
+    .ge-grid-2,
+    .ge-grid-3,
+    .ge-grid-4 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Service card component */
+.ge-service-card {
+    background: var(--ge-glass-bg);
+    border: 1px solid var(--ge-glass-border);
+    border-radius: var(--ge-radius-lg);
+    padding: var(--ge-space-lg);
+    backdrop-filter: var(--ge-backdrop-filter);
+    transition: all var(--ge-transition-base);
+}
+
+.ge-service-card:hover {
+    background: var(--ge-bg-surface-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--ge-shadow-xl);
+}
+
+.ge-service-card h3 {
+    color: var(--ge-text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--ge-space-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--ge-space-sm);
+}
+
+.ge-service-card .service-info {
+    display: flex;
+    align-items: center;
+    gap: var(--ge-space-md);
+    margin-bottom: var(--ge-space-sm);
+    flex-wrap: wrap;
+}
+
+.ge-service-card .port {
+    color: var(--ge-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.ge-service-card .description {
+    color: var(--ge-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.ge-service-card .uptime {
+    color: var(--ge-text-secondary);
+    font-size: 0.75rem;
+    margin-top: var(--ge-space-xs);
+}
+
+/* Auto-refresh indicator */
+.ge-auto-refresh {
+    position: fixed;
+    top: var(--ge-space-lg);
+    right: var(--ge-space-lg);
+    background: var(--ge-glass-bg);
+    border: 1px solid var(--ge-glass-border);
+    border-radius: var(--ge-radius-lg);
+    padding: var(--ge-space-sm) var(--ge-space-md);
+    font-size: 0.75rem;
+    color: var(--ge-text-secondary);
+    backdrop-filter: var(--ge-backdrop-filter);
+    box-shadow: var(--ge-shadow-md);
+    z-index: 1000;
+}
+
+.ge-refresh-indicator {
+    color: var(--ge-success);
+    font-weight: 600;
+}
+
+/* Theme switcher */
+.ge-theme-switcher {
+    position: fixed;
+    top: var(--ge-space-lg);
+    left: var(--ge-space-lg);
+    background: var(--ge-glass-bg);
+    border: 1px solid var(--ge-glass-border);
+    border-radius: var(--ge-radius-lg);
+    padding: var(--ge-space-sm);
+    backdrop-filter: var(--ge-backdrop-filter);
+    box-shadow: var(--ge-shadow-md);
+    z-index: 1000;
+}
+
+.ge-theme-switcher select {
+    background: transparent;
+    border: none;
+    color: var(--ge-text-primary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+}
+
+/* Utility classes */
+.ge-text-center {
+    text-align: center;
+}
+
+.ge-text-left {
+    text-align: left;
+}
+
+.ge-text-right {
+    text-align: right;
+}
+
+.ge-mb-0 {
+    margin-bottom: 0;
+}
+
+.ge-mb-sm {
+    margin-bottom: var(--ge-space-sm);
+}
+
+.ge-mb-md {
+    margin-bottom: var(--ge-space-md);
+}
+
+.ge-mb-lg {
+    margin-bottom: var(--ge-space-lg);
+}
+
+.ge-mb-xl {
+    margin-bottom: var(--ge-space-xl);
+}
+
+.ge-mt-0 {
+    margin-top: 0;
+}
+
+.ge-mt-sm {
+    margin-top: var(--ge-space-sm);
+}
+
+.ge-mt-md {
+    margin-top: var(--ge-space-md);
+}
+
+.ge-mt-lg {
+    margin-top: var(--ge-space-lg);
+}
+
+.ge-mt-xl {
+    margin-top: var(--ge-space-xl);
+}
+
+.ge-p-0 {
+    padding: 0;
+}
+
+.ge-p-sm {
+    padding: var(--ge-space-sm);
+}
+
+.ge-p-md {
+    padding: var(--ge-space-md);
+}
+
+.ge-p-lg {
+    padding: var(--ge-space-lg);
+}
+
+.ge-p-xl {
+    padding: var(--ge-space-xl);
+}
+
+.ge-hidden {
+    display: none;
+}
+
+.ge-block {
+    display: block;
+}
+
+.ge-inline {
+    display: inline;
+}
+
+.ge-inline-block {
+    display: inline-block;
+}
+
+.ge-flex {
+    display: flex;
+}
+
+.ge-grid {
+    display: grid;
+}
+
+.ge-items-center {
+    align-items: center;
+}
+
+.ge-items-start {
+    align-items: flex-start;
+}
+
+.ge-items-end {
+    align-items: flex-end;
+}
+
+.ge-justify-center {
+    justify-content: center;
+}
+
+.ge-justify-between {
+    justify-content: space-between;
+}
+
+.ge-justify-start {
+    justify-content: flex-start;
+}
+
+.ge-justify-end {
+    justify-content: flex-end;
+}
+
+.ge-gap-xs {
+    gap: var(--ge-space-xs);
+}
+
+.ge-gap-sm {
+    gap: var(--ge-space-sm);
+}
+
+.ge-gap-md {
+    gap: var(--ge-space-md);
+}
+
+.ge-gap-lg {
+    gap: var(--ge-space-lg);
+}
+
+.ge-gap-xl {
+    gap: var(--ge-space-xl);
+}
+
+/* Animation classes */
+.ge-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.ge-slide-up {
+    animation: slideUp 0.5s ease-out;
+}
+
+.ge-pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Special theme-specific enhancements */
+[data-theme="hacker"] .ge-card,
+[data-theme="hacker"] .ge-header,
+[data-theme="hacker"] .ge-service-card {
+    border: 1px solid var(--ge-primary);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+}
+
+[data-theme="hacker"] .ge-card:hover,
+[data-theme="hacker"] .ge-service-card:hover {
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.4);
+}
+
+[data-theme="puppies"] .ge-card,
+[data-theme="puppies"] .ge-header,
+[data-theme="puppies"] .ge-service-card {
+    border: 2px solid var(--ge-glass-border);
+}
+
+[data-theme="puppies"] .ge-btn {
+    border-radius: var(--ge-radius-xl);
+}
+
+[data-theme="puppies"] .ge-card,
+[data-theme="puppies"] .ge-service-card {
+    border-radius: var(--ge-radius-xl);
+}
