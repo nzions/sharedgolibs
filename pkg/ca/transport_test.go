@@ -992,3 +992,47 @@ func TestUpdateTransportOnlyIfConditionalBehavior(t *testing.T) {
 		}
 	})
 }
+
+func TestUpdateTransportMust(t *testing.T) {
+	// Save original transport to restore later
+	originalTransport := http.DefaultClient.Transport
+	defer func() {
+		http.DefaultClient.Transport = originalTransport
+		http.DefaultTransport = originalTransport
+	}()
+
+	t.Run("Panics when SGL_CA is not set", func(t *testing.T) {
+		// Ensure SGL_CA is not set
+		os.Unsetenv("SGL_CA")
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("UpdateTransportMust() should panic when SGL_CA is not set")
+			}
+		}()
+		UpdateTransportMust()
+	})
+
+	t.Run("Panics when SGL_CA is invalid", func(t *testing.T) {
+		// Set invalid SGL_CA URL
+		os.Setenv("SGL_CA", "invalid-url")
+		defer os.Unsetenv("SGL_CA")
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("UpdateTransportMust() should panic when SGL_CA is invalid")
+			}
+		}()
+		UpdateTransportMust()
+	})
+
+	t.Run("Panics when CA server is unreachable", func(t *testing.T) {
+		// Set valid URL format but unreachable server
+		os.Setenv("SGL_CA", "http://localhost:99999")
+		defer os.Unsetenv("SGL_CA")
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("UpdateTransportMust() should panic when CA server is unreachable")
+			}
+		}()
+		UpdateTransportMust()
+	})
+}

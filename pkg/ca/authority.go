@@ -19,10 +19,6 @@ import (
 	"time"
 )
 
-const (
-	Version = "v1.5.0" // MINOR: HTTPS-only server enforcement, API returns SecureHTTPSServer
-)
-
 // CA represents a Certificate Authority with the ability to issue certificates
 type CA struct {
 	cert       *x509.Certificate

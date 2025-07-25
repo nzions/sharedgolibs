@@ -137,6 +137,26 @@ func UpdateTransportOnlyIf() error {
 	return updateTransportWithCA(caURL)
 }
 
+// UpdateTransportMust configures the default HTTP client to trust a CA certificate
+// and panics if the operation fails. This is a convenience function for scenarios
+// where transport update failure should be treated as a fatal error.
+//
+// Environment Variables Used:
+//   - SGL_CA (required): CA server URL (must be http:// or https://)
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Global Variables Modified:
+//   - http.DefaultClient.Transport: Replaced with custom transport trusting the CA
+//   - http.DefaultTransport: Replaced with the same custom transport
+//
+// Panics if SGL_CA is not set, invalid, or if the CA certificate
+// cannot be fetched or parsed.
+func UpdateTransportMust() {
+	if err := UpdateTransport(); err != nil {
+		panic(fmt.Sprintf("failed to update transport: %v", err))
+	}
+}
+
 // updateTransportWithCA handles the actual transport update logic by fetching
 // the CA certificate from the specified URL and configuring global HTTP transports.
 //
