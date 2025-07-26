@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const version = "1.1.0"
+const version = "1.5.0"
 
 // PageData represents data for rendering a complete page
 type PageData struct {
@@ -224,6 +224,9 @@ func GetAvailableThemes() map[string]string {
 		"professional":  "💼 Professional",
 		"hacker":        "🖥️ Hacker",
 		"puppies":       "🐕 Puppies",
+		"weyland":       "🛸 Weyland-Yutani",
+		"line-minimum":  "📝 Line Minimum",
+		"waifu":         "🌸 Waifu/UwU",
 	}
 }
 

@@ -1,0 +1,201 @@
+/* 
+ * GoogleEmu Web Components Library - Line Minimum Theme
+ * Typewriter minimal theme with basic lines and monospace typography
+ */
+
+/* Theme: Line Minimum (typewriter minimal with basic lines) */
+[data-theme="line-minimum"] {
+    --ge-primary: #333333;
+    --ge-primary-dark: #222222;
+    --ge-primary-light: #555555;
+    --ge-secondary: #666666;
+    --ge-secondary-dark: #555555;
+    --ge-secondary-light: #777777;
+    --ge-accent: #111111;
+    --ge-surface: #ffffff;
+    --ge-surface-alt: #f8f8f8;
+    --ge-border: #cccccc;
+    --ge-text: #333333;
+    --ge-text-muted: #666666;
+    --ge-text-inverse: #ffffff;
+    --ge-glow: none;
+
+    /* Typewriter font family */
+    --ge-font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    --ge-font-mono: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+
+    /* Minimal styling overrides */
+    --ge-radius-sm: 0px;
+    --ge-radius-md: 0px;
+    --ge-radius-lg: 0px;
+    --ge-radius-xl: 0px;
+    --ge-shadow-sm: none;
+    --ge-shadow-md: none;
+    --ge-shadow-lg: none;
+    --ge-shadow-xl: none;
+    --ge-shadow-glow: none;
+}
+
+[data-theme="line-minimum"] body {
+    background: var(--ge-surface);
+    color: var(--ge-text);
+    font-family: var(--ge-font-family);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+}
+
+[data-theme="line-minimum"] .ge-header {
+    background: var(--ge-surface);
+    border-bottom: 2px solid var(--ge-border);
+    border-radius: 0;
+    backdrop-filter: none;
+    box-shadow: none;
+    padding: var(--ge-space-lg) var(--ge-space-xl);
+}
+
+[data-theme="line-minimum"] .ge-header h1 {
+    font-family: var(--ge-font-family);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--ge-border);
+    padding-bottom: var(--ge-space-sm);
+    margin-bottom: var(--ge-space-sm);
+}
+
+[data-theme="line-minimum"] .ge-header .subtitle {
+    font-family: var(--ge-font-family);
+    font-style: italic;
+    color: var(--ge-text-muted);
+    font-size: 0.9em;
+}
+
+[data-theme="line-minimum"] .ge-card {
+    background: var(--ge-surface);
+    border: 1px solid var(--ge-border);
+    border-radius: 0;
+    box-shadow: none;
+    transition: border-color var(--ge-transition-base);
+}
+
+[data-theme="line-minimum"] .ge-card:hover {
+    border-color: var(--ge-primary);
+    box-shadow: none;
+    transform: none;
+}
+
+[data-theme="line-minimum"] .ge-service-card {
+    position: relative;
+    font-family: var(--ge-font-family);
+}
+
+[data-theme="line-minimum"] .ge-service-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--ge-border);
+    transition: background-color var(--ge-transition-base);
+}
+
+[data-theme="line-minimum"] .ge-service-card:hover::before {
+    background: var(--ge-primary);
+}
+
+[data-theme="line-minimum"] .ge-service-card .service-name {
+    font-family: var(--ge-font-family);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+[data-theme="line-minimum"] .ge-service-card .service-url {
+    font-family: var(--ge-font-mono);
+    font-size: 0.85em;
+    color: var(--ge-text-muted);
+}
+
+[data-theme="line-minimum"] .ge-service-card .service-status {
+    font-family: var(--ge-font-mono);
+    text-transform: uppercase;
+    font-size: 0.8em;
+    letter-spacing: 0.1em;
+}
+
+[data-theme="line-minimum"] .ge-btn {
+    background: var(--ge-surface);
+    color: var(--ge-text);
+    border: 1px solid var(--ge-border);
+    border-radius: 0;
+    font-family: var(--ge-font-family);
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: none;
+    transition: all var(--ge-transition-base);
+}
+
+[data-theme="line-minimum"] .ge-btn:hover {
+    background: var(--ge-primary);
+    color: var(--ge-text-inverse);
+    border-color: var(--ge-primary);
+    box-shadow: none;
+    transform: none;
+}
+
+[data-theme="line-minimum"] .ge-btn-primary {
+    background: var(--ge-primary);
+    color: var(--ge-text-inverse);
+    border-color: var(--ge-primary);
+}
+
+[data-theme="line-minimum"] .ge-btn-primary:hover {
+    background: var(--ge-primary-dark);
+    border-color: var(--ge-primary-dark);
+}
+
+[data-theme="line-minimum"] .ge-status-running {
+    color: var(--ge-text);
+}
+
+[data-theme="line-minimum"] .ge-status-running::before {
+    content: '▶ ';
+}
+
+[data-theme="line-minimum"] .ge-status-stopped {
+    color: var(--ge-text-muted);
+}
+
+[data-theme="line-minimum"] .ge-status-stopped::before {
+    content: '■ ';
+}
+
+[data-theme="line-minimum"] .ge-status-error {
+    color: var(--ge-text);
+}
+
+[data-theme="line-minimum"] .ge-status-error::before {
+    content: '✗ ';
+}
+
+[data-theme="line-minimum"] input,
+[data-theme="line-minimum"] textarea,
+[data-theme="line-minimum"] select {
+    font-family: var(--ge-font-family);
+    border: 1px solid var(--ge-border);
+    border-radius: 0;
+    background: var(--ge-surface);
+    color: var(--ge-text);
+    box-shadow: none;
+}
+
+[data-theme="line-minimum"] input:focus,
+[data-theme="line-minimum"] textarea:focus,
+[data-theme="line-minimum"] select:focus {
+    border-color: var(--ge-primary);
+    box-shadow: none;
+    outline: none;
+}

@@ -1,0 +1,28 @@
+/* 
+ * GoogleEmu Web Components Library - Puppies Theme
+ * Fun and colorful theme with cheerful colors
+ */
+
+[data-theme="puppies"] {
+    --ge-primary: #f59e0b;
+    --ge-secondary: #ef4444;
+    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #d97706 0%, #dc2626 100%);
+
+    --ge-bg-primary: linear-gradient(135deg, #fef3c7 0%, #fed7d7 50%, #ddd6fe 100%);
+    --ge-bg-secondary: #ffffff;
+    --ge-bg-surface: rgba(255, 255, 255, 0.9);
+    --ge-bg-surface-hover: rgba(255, 255, 255, 0.95);
+
+    --ge-text-primary: #374151;
+    --ge-text-secondary: #6b7280;
+    --ge-text-muted: #9ca3af;
+    --ge-text-inverted: #ffffff;
+
+    --ge-border: #f3f4f6;
+    --ge-border-hover: #e5e7eb;
+
+    --ge-backdrop-filter: blur(5px);
+    --ge-glass-bg: rgba(255, 255, 255, 0.8);
+    --ge-glass-border: rgba(251, 191, 36, 0.3);
+}

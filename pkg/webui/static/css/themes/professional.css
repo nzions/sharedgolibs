@@ -1,0 +1,28 @@
+/* 
+ * GoogleEmu Web Components Library - Professional Theme
+ * Clean corporate look with professional styling
+ */
+
+[data-theme="professional"] {
+    --ge-primary: #2563eb;
+    --ge-secondary: #1e40af;
+    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+
+    --ge-bg-primary: #f8fafc;
+    --ge-bg-secondary: #ffffff;
+    --ge-bg-surface: #ffffff;
+    --ge-bg-surface-hover: #f1f5f9;
+
+    --ge-text-primary: #0f172a;
+    --ge-text-secondary: #475569;
+    --ge-text-muted: #64748b;
+    --ge-text-inverted: #ffffff;
+
+    --ge-border: #e2e8f0;
+    --ge-border-hover: #cbd5e1;
+
+    --ge-backdrop-filter: none;
+    --ge-glass-bg: #ffffff;
+    --ge-glass-border: #e2e8f0;
+}

@@ -1,0 +1,169 @@
+/* 
+ * GoogleEmu Web Components Library - Weyland-Yutani Theme
+ * Retro-futuristic corporate terminal theme inspired by Alien franchise
+ */
+
+/* Theme: Weyland-Yutani (retro-futuristic corporate terminal) */
+[data-theme="weyland"] {
+    --ge-primary: #00ff41;
+    --ge-secondary: #66ff66;
+    --ge-gradient: linear-gradient(135deg, #003d00 0%, #005500 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #005500 0%, #007700 100%);
+
+    --ge-bg-primary: #0a0a0a;
+    --ge-bg-secondary: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    --ge-bg-surface: linear-gradient(135deg, #111111 0%, #1e1e1e 100%);
+    --ge-bg-surface-hover: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+
+    --ge-text-primary: #00ff41;
+    --ge-text-secondary: #66ff66;
+    --ge-text-muted: #408040;
+    --ge-text-inverted: #000000;
+
+    --ge-border: #00ff41;
+    --ge-border-hover: #66ff66;
+
+    --ge-backdrop-filter: none;
+    --ge-glass-bg: rgba(0, 255, 65, 0.1);
+    --ge-glass-border: rgba(0, 255, 65, 0.3);
+
+    /* Special Weyland-Yutani styling */
+    --ge-font-family: 'IBM Plex Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    --ge-header-font: 'Orbitron', 'Arial Black', sans-serif;
+    --ge-glow: 0 0 10px #00ff41;
+    --ge-glow-strong: 0 0 20px #00ff41;
+    --ge-shadow-weyland: 0 0 20px rgba(0, 255, 65, 0.3), inset 0 1px 1px rgba(0, 255, 65, 0.1);
+}
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--ge-font-family);
+    background: var(--ge-bg-primary);
+    color: var(--ge-text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    transition: all var(--ge-transition-base);
+}
+
+/* Weyland-Yutani Theme Special Effects */
+[data-theme="weyland"] body {
+    overflow-x: hidden;
+}
+
+/* Scanlines effect for Weyland-Yutani theme */
+[data-theme="weyland"] body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(90deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 65, 0.03) 2px,
+            rgba(0, 255, 65, 0.03) 4px);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Enhanced header styling for Weyland-Yutani */
+[data-theme="weyland"] .ge-header {
+    border: 1px solid var(--ge-border);
+    box-shadow: var(--ge-shadow-weyland);
+    position: relative;
+}
+
+[data-theme="weyland"] .ge-header::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #00ff41, transparent, #00ff41);
+    border-radius: var(--ge-radius-lg);
+    z-index: -1;
+    opacity: 0.3;
+}
+
+[data-theme="weyland"] .ge-header h1 {
+    font-family: var(--ge-header-font);
+    text-shadow: var(--ge-glow);
+    letter-spacing: 2px;
+    font-weight: 900;
+}
+
+[data-theme="weyland"] .ge-header .subtitle {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.875rem;
+}
+
+/* Enhanced cards for Weyland-Yutani */
+[data-theme="weyland"] .ge-card {
+    border: 1px solid var(--ge-border);
+    box-shadow: var(--ge-shadow-weyland);
+}
+
+[data-theme="weyland"] .ge-card:hover {
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.4), inset 0 1px 1px rgba(0, 255, 65, 0.2);
+}
+
+/* Enhanced service cards for Weyland-Yutani */
+[data-theme="weyland"] .ge-service-card {
+    border: 1px solid var(--ge-glass-border);
+    box-shadow: var(--ge-shadow-weyland);
+    position: relative;
+}
+
+[data-theme="weyland"] .ge-service-card::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    border-radius: calc(var(--ge-radius-lg) - 2px);
+    pointer-events: none;
+}
+
+[data-theme="weyland"] .ge-service-card:hover {
+    box-shadow: 0 0 25px rgba(0, 255, 65, 0.5), inset 0 1px 1px rgba(0, 255, 65, 0.2);
+}
+
+/* Enhanced buttons for Weyland-Yutani */
+[data-theme="weyland"] .ge-btn {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="weyland"] .ge-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+[data-theme="weyland"] .ge-btn:hover::before {
+    left: 100%;
+}
+
+[data-theme="weyland"] .ge-btn:hover {
+    text-shadow: var(--ge-glow);
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.7);
+}

@@ -1,0 +1,425 @@
+/* 
+ * GoogleEmu Web Components Library - Waifu/UwU Theme
+ * Kawaii anime aesthetic with sparkles, hearts, and adorable animations
+ */
+
+/* Theme: Waifu/UwU (kawaii anime aesthetic) */
+[data-theme="waifu"] {
+    --ge-primary: #ff69b4;
+    --ge-primary-dark: #ff1493;
+    --ge-primary-light: #ffb6c1;
+    --ge-secondary: #ff6b9d;
+    --ge-secondary-dark: #ff4081;
+    --ge-secondary-light: #ff8fa3;
+    --ge-accent: #ffa500;
+    --ge-surface: #fff0f5;
+    --ge-surface-alt: #ffe4e1;
+    --ge-border: #ffb6c1;
+    --ge-text: #8b008b;
+    --ge-text-muted: #ba55d3;
+    --ge-text-inverse: #ffffff;
+    --ge-glow: 0 0 20px rgba(255, 105, 180, 0.6);
+
+    /* Kawaii font styling */
+    --ge-font-family: 'Comic Sans MS', 'Marker Felt', 'Brush Script MT', cursive;
+    --ge-font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+
+    /* Soft rounded borders */
+    --ge-radius-sm: 15px;
+    --ge-radius-md: 20px;
+    --ge-radius-lg: 25px;
+    --ge-radius-xl: 30px;
+    --ge-shadow-kawaii: 0 8px 32px rgba(255, 105, 180, 0.3);
+    --ge-shadow-soft: 0 4px 20px rgba(255, 182, 193, 0.4);
+
+    /* Gradient backgrounds */
+    --ge-gradient-kawaii: linear-gradient(135deg, #ffc0cb 0%, #ffb6c1 25%, #ffa0b4 50%, #ff69b4 100%);
+    --ge-gradient-sparkle: linear-gradient(45deg, #ff69b4 0%, #ff1493 25%, #ff6b9d 50%, #ffa500 75%, #ff69b4 100%);
+}
+
+[data-theme="waifu"] body {
+    background: var(--ge-gradient-kawaii);
+    color: var(--ge-text);
+    font-family: var(--ge-font-family);
+    font-weight: 400;
+    line-height: 1.6;
+    position: relative;
+}
+
+/* Kawaii floating hearts background */
+[data-theme="waifu"] body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        radial-gradient(circle at 20% 80%, rgba(255, 105, 180, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 182, 193, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(255, 107, 157, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 1;
+    animation: kawaiiFloat 6s ease-in-out infinite;
+}
+
+/* Cute sparkle overlay */
+[data-theme="waifu"] body::after {
+    content: '✨ ❤️ 🌸 ✨ 💖 🌺 ✨ 💕 🌸 ✨ ❤️ 🌺 ✨ 💖 🌸 ✨ 💕 🌺 ✨ ❤️ 🌸 ✨ 💖 🌺 ✨ 💕 🌸 ✨ ❤️ 🌺 ✨ 💖 🌸 ✨ 💕 🌺 ✨ ❤️ 🌸 ✨ 💖 🌺 ✨ 💕 🌸 ✨ ❤️ 🌺 ✨ 💖 🌸 ✨ 💕 🌺 ✨ ❤️ 🌸 ✨ 💖 🌺 ✨ 💕 🌸 ✨ ❤️ 🌺 ✨ 💖 🌸 ✨ 💕 🌺';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    font-size: 1.5rem;
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: 2;
+    animation: sparkleRotate 20s linear infinite;
+    line-height: 3rem;
+    overflow: hidden;
+}
+
+[data-theme="waifu"] .ge-header {
+    background: rgba(255, 255, 255, 0.9);
+    border: 3px solid var(--ge-border);
+    border-radius: var(--ge-radius-xl);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--ge-shadow-kawaii);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="waifu"] .ge-header::before {
+    content: '(◕‿◕)♡ UwU ♡ (◕‿◕)';
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--ge-primary);
+    font-size: 1.2rem;
+    animation: bounce 2s infinite;
+    z-index: 10;
+}
+
+[data-theme="waifu"] .ge-header h1 {
+    font-family: var(--ge-font-family);
+    font-weight: bold;
+    color: var(--ge-primary);
+    text-shadow: var(--ge-glow);
+    position: relative;
+}
+
+[data-theme="waifu"] .ge-header h1::after {
+    content: ' (´｡• ᵕ •｡`) ♡';
+    color: var(--ge-accent);
+    animation: heartbeat 1.5s infinite;
+}
+
+[data-theme="waifu"] .ge-header .subtitle {
+    font-family: var(--ge-font-family);
+    color: var(--ge-text-muted);
+    font-style: italic;
+}
+
+[data-theme="waifu"] .ge-header .subtitle::before {
+    content: '✨ ';
+}
+
+[data-theme="waifu"] .ge-header .subtitle::after {
+    content: ' ✨';
+}
+
+[data-theme="waifu"] .ge-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid var(--ge-border);
+    border-radius: var(--ge-radius-lg);
+    box-shadow: var(--ge-shadow-soft);
+    transition: all var(--ge-transition-base);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="waifu"] .ge-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: var(--ge-gradient-sparkle);
+    opacity: 0;
+    transition: opacity var(--ge-transition-base);
+    animation: sparkleShine 3s linear infinite;
+}
+
+[data-theme="waifu"] .ge-card:hover {
+    border-color: var(--ge-primary);
+    box-shadow: var(--ge-shadow-kawaii);
+    transform: translateY(-5px) scale(1.02);
+}
+
+[data-theme="waifu"] .ge-card:hover::before {
+    opacity: 0.1;
+}
+
+[data-theme="waifu"] .ge-service-card {
+    position: relative;
+    font-family: var(--ge-font-family);
+}
+
+[data-theme="waifu"] .ge-service-card::before {
+    content: '໒꒰ྀི ˶• ༝ •˶ ꒱ྀི১';
+    position: absolute;
+    top: var(--ge-space-sm);
+    right: var(--ge-space-sm);
+    color: var(--ge-accent);
+    font-size: 1rem;
+    animation: wiggle 2s infinite;
+}
+
+[data-theme="waifu"] .ge-service-card .service-name {
+    font-family: var(--ge-font-family);
+    font-weight: bold;
+    color: var(--ge-primary);
+    text-shadow: 1px 1px 3px rgba(255, 105, 180, 0.3);
+}
+
+[data-theme="waifu"] .ge-service-card .service-name::before {
+    content: '💖 ';
+}
+
+[data-theme="waifu"] .ge-service-card .service-url {
+    font-family: var(--ge-font-mono);
+    font-size: 0.85em;
+    color: var(--ge-text-muted);
+}
+
+[data-theme="waifu"] .ge-service-card .service-status {
+    font-family: var(--ge-font-family);
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+[data-theme="waifu"] .ge-btn {
+    background: var(--ge-gradient-sparkle);
+    color: var(--ge-text-inverse);
+    border: 2px solid var(--ge-primary-light);
+    border-radius: var(--ge-radius-xl);
+    font-family: var(--ge-font-family);
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--ge-shadow-soft);
+    transition: all var(--ge-transition-base);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="waifu"] .ge-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: left 0.6s;
+}
+
+[data-theme="waifu"] .ge-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: var(--ge-shadow-kawaii);
+    border-color: var(--ge-primary);
+}
+
+[data-theme="waifu"] .ge-btn:hover::before {
+    left: 100%;
+}
+
+[data-theme="waifu"] .ge-btn-primary::after {
+    content: ' (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧';
+    font-size: 0.8em;
+}
+
+[data-theme="waifu"] .ge-status-running {
+    color: var(--ge-primary);
+    background: rgba(255, 105, 180, 0.2);
+    border: 1px solid var(--ge-primary);
+    font-weight: bold;
+}
+
+[data-theme="waifu"] .ge-status-running::before {
+    content: '(◡ ‿ ◡) ';
+}
+
+[data-theme="waifu"] .ge-status-stopped {
+    color: var(--ge-text-muted);
+    background: rgba(186, 85, 211, 0.2);
+    border: 1px solid var(--ge-text-muted);
+}
+
+[data-theme="waifu"] .ge-status-stopped::before {
+    content: '(｡•́︿•̀｡) ';
+}
+
+[data-theme="waifu"] .ge-status-error {
+    color: var(--ge-accent);
+    background: rgba(255, 165, 0, 0.2);
+    border: 1px solid var(--ge-accent);
+}
+
+[data-theme="waifu"] .ge-status-error::before {
+    content: '(⊙_⊙;) ';
+}
+
+[data-theme="waifu"] .ge-status-warning {
+    color: #ff9500;
+    background: rgba(255, 149, 0, 0.2);
+    border: 1px solid #ff9500;
+    border-radius: var(--ge-radius-md);
+    padding: var(--ge-space-xs) var(--ge-space-sm);
+    font-weight: bold;
+}
+
+[data-theme="waifu"] .ge-status-warning::before {
+    content: '(｡•́ ⌓ •̀｡) ';
+    font-size: 0.9em;
+}
+
+[data-theme="waifu"] .ge-btn-warning {
+    background: #ff9500;
+    border: 2px solid #ff9500;
+    color: white;
+    border-radius: var(--ge-radius-md);
+    font-weight: bold;
+    box-shadow: var(--ge-shadow-soft);
+    transition: all 0.3s ease;
+}
+
+[data-theme="waifu"] .ge-btn-warning::before {
+    content: '(＞﹏＜) ';
+    margin-right: 4px;
+}
+
+[data-theme="waifu"] .ge-btn-warning:hover {
+    background: #ff8800;
+    transform: translateY(-2px);
+    box-shadow: var(--ge-shadow-kawaii);
+    animation: wiggle 0.5s ease-in-out;
+}
+
+[data-theme="waifu"] .ge-status-dot-warning {
+    background: #ff9500;
+    border-radius: 50%;
+    width: 8px;
+    height: 8px;
+    display: inline-block;
+    margin-right: 6px;
+    box-shadow: 0 0 8px rgba(255, 149, 0, 0.6);
+    animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+[data-theme="waifu"] input,
+[data-theme="waifu"] textarea,
+[data-theme="waifu"] select {
+    font-family: var(--ge-font-family);
+    border: 2px solid var(--ge-border);
+    border-radius: var(--ge-radius-md);
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--ge-text);
+    box-shadow: var(--ge-shadow-soft);
+}
+
+[data-theme="waifu"] input:focus,
+[data-theme="waifu"] textarea:focus,
+[data-theme="waifu"] select:focus {
+    border-color: var(--ge-primary);
+    box-shadow: var(--ge-shadow-kawaii);
+    outline: none;
+}
+
+/* Kawaii animations */
+@keyframes kawaiiFloat {
+
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    33% {
+        transform: translateY(-10px) rotate(1deg);
+    }
+
+    66% {
+        transform: translateY(-5px) rotate(-1deg);
+    }
+}
+
+@keyframes sparkleRotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes bounce {
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    40% {
+        transform: translateX(-50%) translateY(-20px);
+    }
+
+    60% {
+        transform: translateX(-50%) translateY(-10px);
+    }
+}
+
+@keyframes heartbeat {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes wiggle {
+
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(5deg);
+    }
+
+    75% {
+        transform: rotate(-5deg);
+    }
+}
+
+@keyframes sparkleShine {
+    0% {
+        transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    }
+
+    100% {
+        transform: translateX(100%) translateY(100%) rotate(45deg);
+    }
+}
+
+/* L33T H4CK3R Theme Special Effects - M0R3 M4TR1X! */

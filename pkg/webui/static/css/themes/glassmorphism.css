@@ -1,0 +1,28 @@
+/* 
+ * GoogleEmu Web Components Library - Glassmorphism Theme
+ * Inspired by current portdash with glass morphism effects
+ */
+
+[data-theme="glassmorphism"] {
+    --ge-primary: #667eea;
+    --ge-secondary: #764ba2;
+    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+
+    --ge-bg-primary: var(--ge-gradient);
+    --ge-bg-secondary: rgba(255, 255, 255, 0.1);
+    --ge-bg-surface: rgba(255, 255, 255, 0.15);
+    --ge-bg-surface-hover: rgba(255, 255, 255, 0.25);
+
+    --ge-text-primary: rgba(255, 255, 255, 0.95);
+    --ge-text-secondary: rgba(255, 255, 255, 0.75);
+    --ge-text-muted: rgba(255, 255, 255, 0.6);
+    --ge-text-inverted: #1f2937;
+
+    --ge-border: rgba(255, 255, 255, 0.2);
+    --ge-border-hover: rgba(255, 255, 255, 0.3);
+
+    --ge-backdrop-filter: blur(10px);
+    --ge-glass-bg: rgba(255, 255, 255, 0.1);
+    --ge-glass-border: rgba(255, 255, 255, 0.2);
+}

@@ -1,10 +1,20 @@
 /* 
  * GoogleEmu Web Components Library
- * Version: 1.0.0
+ * Version: 1.5.0
  * 
  * A themeable component library for GoogleEmu frontend interfaces
- * Supports multiple themes: glassmorphism, professional, hacker, puppies, weyland
+ * Supports multiple themes: glassmorphism, professional, hacker, puppies, weyland, line-minimum, waifu
+ * L33T H4CK3R update: Enhanced Matrix effects with authentic l33t sp33k!
  */
+
+/* Import all theme definitions */
+@import url('./themes/glassmorphism.css');
+@import url('./themes/professional.css');
+@import url('./themes/hacker.css');
+@import url('./themes/puppies.css');
+@import url('./themes/weyland.css');
+@import url('./themes/line-minimum.css');
+@import url('./themes/waifu.css');
 
 :root {
     /* Base color system */
@@ -43,274 +53,6 @@
     --ge-warning: #f59e0b;
     --ge-danger: #ef4444;
     --ge-info: #3b82f6;
-}
-
-/* Theme: Glassmorphism (inspired by current portdash) */
-[data-theme="glassmorphism"] {
-    --ge-primary: #667eea;
-    --ge-secondary: #764ba2;
-    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
-    --ge-gradient-hover: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-
-    --ge-bg-primary: var(--ge-gradient);
-    --ge-bg-secondary: rgba(255, 255, 255, 0.1);
-    --ge-bg-surface: rgba(255, 255, 255, 0.15);
-    --ge-bg-surface-hover: rgba(255, 255, 255, 0.25);
-
-    --ge-text-primary: rgba(255, 255, 255, 0.95);
-    --ge-text-secondary: rgba(255, 255, 255, 0.75);
-    --ge-text-muted: rgba(255, 255, 255, 0.6);
-    --ge-text-inverted: #1f2937;
-
-    --ge-border: rgba(255, 255, 255, 0.2);
-    --ge-border-hover: rgba(255, 255, 255, 0.3);
-
-    --ge-backdrop-filter: blur(10px);
-    --ge-glass-bg: rgba(255, 255, 255, 0.1);
-    --ge-glass-border: rgba(255, 255, 255, 0.2);
-}
-
-/* Theme: Professional (clean corporate look) */
-[data-theme="professional"] {
-    --ge-primary: #2563eb;
-    --ge-secondary: #1e40af;
-    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
-    --ge-gradient-hover: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
-
-    --ge-bg-primary: #f8fafc;
-    --ge-bg-secondary: #ffffff;
-    --ge-bg-surface: #ffffff;
-    --ge-bg-surface-hover: #f1f5f9;
-
-    --ge-text-primary: #0f172a;
-    --ge-text-secondary: #475569;
-    --ge-text-muted: #64748b;
-    --ge-text-inverted: #ffffff;
-
-    --ge-border: #e2e8f0;
-    --ge-border-hover: #cbd5e1;
-
-    --ge-backdrop-filter: none;
-    --ge-glass-bg: #ffffff;
-    --ge-glass-border: #e2e8f0;
-}
-
-/* Theme: Hacker (dark terminal aesthetic) */
-[data-theme="hacker"] {
-    --ge-primary: #00ff41;
-    --ge-secondary: #00cc33;
-    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
-    --ge-gradient-hover: linear-gradient(135deg, #00e63a 0%, #00b82e 100%);
-
-    --ge-bg-primary: #0a0a0a;
-    --ge-bg-secondary: #1a1a1a;
-    --ge-bg-surface: #2a2a2a;
-    --ge-bg-surface-hover: #3a3a3a;
-
-    --ge-text-primary: #00ff41;
-    --ge-text-secondary: #80ff80;
-    --ge-text-muted: #408040;
-    --ge-text-inverted: #000000;
-
-    --ge-border: #00ff41;
-    --ge-border-hover: #00cc33;
-
-    --ge-backdrop-filter: none;
-    --ge-glass-bg: rgba(0, 255, 65, 0.1);
-    --ge-glass-border: rgba(0, 255, 65, 0.3);
-
-    /* Override font for hacker theme */
-    --ge-font-family: var(--ge-font-mono);
-}
-
-/* Theme: Puppies (fun and colorful) */
-[data-theme="puppies"] {
-    --ge-primary: #f59e0b;
-    --ge-secondary: #ef4444;
-    --ge-gradient: linear-gradient(135deg, var(--ge-primary) 0%, var(--ge-secondary) 100%);
-    --ge-gradient-hover: linear-gradient(135deg, #d97706 0%, #dc2626 100%);
-
-    --ge-bg-primary: linear-gradient(135deg, #fef3c7 0%, #fed7d7 50%, #ddd6fe 100%);
-    --ge-bg-secondary: #ffffff;
-    --ge-bg-surface: rgba(255, 255, 255, 0.9);
-    --ge-bg-surface-hover: rgba(255, 255, 255, 0.95);
-
-    --ge-text-primary: #374151;
-    --ge-text-secondary: #6b7280;
-    --ge-text-muted: #9ca3af;
-    --ge-text-inverted: #ffffff;
-
-    --ge-border: #f3f4f6;
-    --ge-border-hover: #e5e7eb;
-
-    --ge-backdrop-filter: blur(5px);
-    --ge-glass-bg: rgba(255, 255, 255, 0.8);
-    --ge-glass-border: rgba(251, 191, 36, 0.3);
-}
-
-/* Theme: Weyland-Yutani (retro-futuristic corporate terminal) */
-[data-theme="weyland"] {
-    --ge-primary: #00ff41;
-    --ge-secondary: #66ff66;
-    --ge-gradient: linear-gradient(135deg, #003d00 0%, #005500 100%);
-    --ge-gradient-hover: linear-gradient(135deg, #005500 0%, #007700 100%);
-
-    --ge-bg-primary: #0a0a0a;
-    --ge-bg-secondary: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-    --ge-bg-surface: linear-gradient(135deg, #111111 0%, #1e1e1e 100%);
-    --ge-bg-surface-hover: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
-
-    --ge-text-primary: #00ff41;
-    --ge-text-secondary: #66ff66;
-    --ge-text-muted: #408040;
-    --ge-text-inverted: #000000;
-
-    --ge-border: #00ff41;
-    --ge-border-hover: #66ff66;
-
-    --ge-backdrop-filter: none;
-    --ge-glass-bg: rgba(0, 255, 65, 0.1);
-    --ge-glass-border: rgba(0, 255, 65, 0.3);
-
-    /* Special Weyland-Yutani styling */
-    --ge-font-family: 'IBM Plex Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    --ge-header-font: 'Orbitron', 'Arial Black', sans-serif;
-    --ge-glow: 0 0 10px #00ff41;
-    --ge-glow-strong: 0 0 20px #00ff41;
-    --ge-shadow-weyland: 0 0 20px rgba(0, 255, 65, 0.3), inset 0 1px 1px rgba(0, 255, 65, 0.1);
-}
-
-/* Reset and base styles */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: var(--ge-font-family);
-    background: var(--ge-bg-primary);
-    color: var(--ge-text-primary);
-    line-height: 1.6;
-    min-height: 100vh;
-    transition: all var(--ge-transition-base);
-}
-
-/* Weyland-Yutani Theme Special Effects */
-[data-theme="weyland"] body {
-    overflow-x: hidden;
-}
-
-/* Scanlines effect for Weyland-Yutani theme */
-[data-theme="weyland"] body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(90deg,
-            transparent,
-            transparent 2px,
-            rgba(0, 255, 65, 0.03) 2px,
-            rgba(0, 255, 65, 0.03) 4px);
-    pointer-events: none;
-    z-index: 1000;
-}
-
-/* Enhanced header styling for Weyland-Yutani */
-[data-theme="weyland"] .ge-header {
-    border: 1px solid var(--ge-border);
-    box-shadow: var(--ge-shadow-weyland);
-    position: relative;
-}
-
-[data-theme="weyland"] .ge-header::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: linear-gradient(45deg, #00ff41, transparent, #00ff41);
-    border-radius: var(--ge-radius-lg);
-    z-index: -1;
-    opacity: 0.3;
-}
-
-[data-theme="weyland"] .ge-header h1 {
-    font-family: var(--ge-header-font);
-    text-shadow: var(--ge-glow);
-    letter-spacing: 2px;
-    font-weight: 900;
-}
-
-[data-theme="weyland"] .ge-header .subtitle {
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: 0.875rem;
-}
-
-/* Enhanced cards for Weyland-Yutani */
-[data-theme="weyland"] .ge-card {
-    border: 1px solid var(--ge-border);
-    box-shadow: var(--ge-shadow-weyland);
-}
-
-[data-theme="weyland"] .ge-card:hover {
-    box-shadow: 0 0 30px rgba(0, 255, 65, 0.4), inset 0 1px 1px rgba(0, 255, 65, 0.2);
-}
-
-/* Enhanced service cards for Weyland-Yutani */
-[data-theme="weyland"] .ge-service-card {
-    border: 1px solid var(--ge-glass-border);
-    box-shadow: var(--ge-shadow-weyland);
-    position: relative;
-}
-
-[data-theme="weyland"] .ge-service-card::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    right: 2px;
-    bottom: 2px;
-    border: 1px solid rgba(0, 255, 65, 0.3);
-    border-radius: calc(var(--ge-radius-lg) - 2px);
-    pointer-events: none;
-}
-
-[data-theme="weyland"] .ge-service-card:hover {
-    box-shadow: 0 0 25px rgba(0, 255, 65, 0.5), inset 0 1px 1px rgba(0, 255, 65, 0.2);
-}
-
-/* Enhanced buttons for Weyland-Yutani */
-[data-theme="weyland"] .ge-btn {
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 500;
-    position: relative;
-    overflow: hidden;
-}
-
-[data-theme="weyland"] .ge-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
-    transition: left 0.5s;
-}
-
-[data-theme="weyland"] .ge-btn:hover::before {
-    left: 100%;
-}
-
-[data-theme="weyland"] .ge-btn:hover {
-    text-shadow: var(--ge-glow);
-    box-shadow: 0 0 15px rgba(0, 255, 65, 0.7);
 }
 
 /* Core layout components */
@@ -837,18 +579,6 @@ body {
 }
 
 /* Special theme-specific enhancements */
-[data-theme="hacker"] .ge-card,
-[data-theme="hacker"] .ge-header,
-[data-theme="hacker"] .ge-service-card {
-    border: 1px solid var(--ge-primary);
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
-}
-
-[data-theme="hacker"] .ge-card:hover,
-[data-theme="hacker"] .ge-service-card:hover {
-    box-shadow: 0 0 30px rgba(0, 255, 65, 0.4);
-}
-
 [data-theme="puppies"] .ge-card,
 [data-theme="puppies"] .ge-header,
 [data-theme="puppies"] .ge-service-card {

@@ -27,23 +27,12 @@
 </head>
 
 <body>
-    <!-- Theme Switcher -->
-    <div class="ge-theme-switcher">
-        <select id="ge-theme-select">
-            <option value="glassmorphism">🌌 Glassmorphism</option>
-            <option value="professional">💼 Professional</option>
-            <option value="hacker">🖥️ Hacker</option>
-            <option value="puppies">🐕 Puppies</option>
-            <option value="weyland">🛸 Weyland-Yutani</option>
-        </select>
-    </div>
-
     <div class="ge-container">
         <!-- Header Demo -->
         <div class="ge-header ge-fade-in">
             <h1>GoogleEmu Component Library</h1>
             <div class="subtitle">Themeable UI components for emulator frontends</div>
-            <div class="version">v1.0.0</div>
+            <div class="version">v1.5.0</div>
         </div>
 
         <!-- Service Cards Demo -->
@@ -163,10 +152,15 @@
                     <li><strong>🌌 Glassmorphism</strong>: Futuristic glassmorphism design (inspired by current
                         portdash)</li>
                     <li><strong>💼 Professional</strong>: Clean corporate interface for business environments</li>
-                    <li><strong>🖥️ Hacker</strong>: Terminal-inspired dark theme with green accents</li>
+                    <li><strong>🖥️ Hacker</strong>: Authentic l33t h4ck3r Matrix style with binary rain, CRT scanlines,
+                        and l33t sp33k</li>
                     <li><strong>🐕 Puppies</strong>: Fun and colorful design with playful elements</li>
                     <li><strong>🛸 Weyland-Yutani</strong>: Retro-futuristic corporate terminal with scanlines and
                         matrix effects</li>
+                    <li><strong>📝 Line Minimum</strong>: Minimal typewriter-style theme with basic lines and minimal
+                        color</li>
+                    <li><strong>🌸 Waifu/UwU</strong>: Kawaii anime aesthetic with pastel colors, cute animations,
+                        and adorable emoticons</li>
                 </ul>
                 <p>Switch themes using the dropdown in the top-left corner to see the components adapt!</p>
             </div>
@@ -182,34 +176,54 @@
     <script>
         // Demo specific code
         document.addEventListener('DOMContentLoaded', () => {
-            const ge = new GoogleEmuComponents();
-
-            // Update theme name display
+            // Function to update theme name display
             function updateThemeName() {
+                const ge = window.GoogleEmu;
+                if (!ge) {
+                    console.warn('GoogleEmu instance not ready yet');
+                    return;
+                }
+
                 const themeNames = {
                     'glassmorphism': 'Glassmorphism 🌌',
                     'professional': 'Professional 💼',
                     'hacker': 'Hacker 🖥️',
                     'puppies': 'Puppies 🐕',
-                    'weyland': 'Weyland-Yutani 🛸'
+                    'weyland': 'Weyland-Yutani 🛸',
+                    'line-minimum': 'Line Minimum 📝',
+                    'waifu': 'Waifu/UwU 🌸'
                 };
-                document.getElementById('current-theme').textContent = themeNames[ge.currentTheme] || ge.currentTheme;
+
+                const currentThemeEl = document.getElementById('current-theme');
+                if (currentThemeEl) {
+                    currentThemeEl.textContent = themeNames[ge.currentTheme] || ge.currentTheme;
+                }
             }
 
-            updateThemeName();
+            // Wait for GoogleEmu to be initialized, then update theme name
+            const checkAndUpdate = () => {
+                if (window.GoogleEmu) {
+                    updateThemeName();
+                } else {
+                    setTimeout(checkAndUpdate, 50);
+                }
+            };
+            checkAndUpdate();
 
             // Listen for theme changes
             document.addEventListener('ge-theme-changed', updateThemeName);
 
             // Show auto-refresh demo on hover
             const autoRefreshDemo = document.querySelector('.ge-auto-refresh');
-            document.body.addEventListener('mousemove', (e) => {
-                if (e.clientX > window.innerWidth - 200 && e.clientY < 100) {
-                    autoRefreshDemo.style.display = 'block';
-                } else {
-                    autoRefreshDemo.style.display = 'none';
-                }
-            });
+            if (autoRefreshDemo) {
+                document.body.addEventListener('mousemove', (e) => {
+                    if (e.clientX > window.innerWidth - 200 && e.clientY < 100) {
+                        autoRefreshDemo.style.display = 'block';
+                    } else {
+                        autoRefreshDemo.style.display = 'none';
+                    }
+                });
+            }
 
             // Add some interactive demos
             document.querySelectorAll('.ge-btn').forEach(btn => {

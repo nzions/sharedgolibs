@@ -1,0 +1,485 @@
+/* 
+ * GoogleEmu Web Components Library - Hacker Theme
+ * Authentic l33t h4ck3r Matrix style with Matrix effects and l33t sp33k!
+ */
+
+/* Theme: Hacker (Authentic l33t h4ck3r Matrix style) */
+[data-theme="hacker"] {
+    --ge-primary: #00ff00;
+    --ge-secondary: #ff0040;
+    --ge-accent: #00ffff;
+    --ge-warning: #ffff00;
+    --ge-gradient: linear-gradient(135deg, #000000 0%, #001100 25%, #002200 50%, #001100 75%, #000000 100%);
+    --ge-gradient-hover: linear-gradient(135deg, #001100 0%, #002200 25%, #003300 50%, #002200 75%, #001100 100%);
+
+    --ge-bg-primary: radial-gradient(ellipse at center, #000a00 0%, #000000 60%);
+    --ge-bg-secondary: linear-gradient(135deg, #001a00 0%, #000000 100%);
+    --ge-bg-surface: rgba(0, 0, 0, 0.95);
+    --ge-bg-surface-hover: rgba(0, 40, 0, 0.9);
+
+    --ge-text-primary: #00ff00;
+    --ge-text-secondary: #00cc00;
+    --ge-text-muted: #008800;
+    --ge-text-inverted: #000000;
+
+    --ge-border: #00ff00;
+    --ge-border-hover: #00cc00;
+
+    --ge-backdrop-filter: none;
+    --ge-glass-bg: rgba(0, 255, 0, 0.03);
+    --ge-glass-border: rgba(0, 255, 0, 0.4);
+
+    /* L33t h4ck3r fonts and effects */
+    --ge-font-family: 'Courier New', 'Matrix Code NFI', 'Lucida Console', 'Anonymous Pro', monospace;
+    --ge-glow-matrix: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 15px #00ff00, 0 0 20px #00ff00;
+    --ge-glow-red: 0 0 5px #ff0040, 0 0 10px #ff0040, 0 0 15px #ff0040;
+    --ge-glow-cyan: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #00ffff;
+    --ge-glow-yellow: 0 0 5px #ffff00, 0 0 10px #ffff00, 0 0 15px #ffff00;
+
+    /* Matrix code rain effect variables */
+    --ge-matrix-speed: 3s;
+    --ge-glitch-speed: 0.1s;
+}
+
+
+[data-theme="hacker"] body {
+    overflow-x: hidden;
+    background: var(--ge-bg-primary);
+    position: relative;
+    font-family: var(--ge-font-family);
+}
+
+/* Matrix digital rain background effect */
+[data-theme="hacker"] body::before {
+    content: '01001000 01000001 01000011 01001011 01001001 01001110 01000111 00100000 01001001 01001110 00100000 01010000 01010010 01001111 01000111 01010010 01000101 01010011 01010011 00101110 00101110 00101110 00001010 41434345535320474152414E5445440A 0110100001100001011000110110101101100101011001000010000001110100011010000110010100100000011011010110000101110100011100100110100101111000';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    color: var(--ge-primary);
+    opacity: 0.05;
+    font-size: 8px;
+    line-height: 10px;
+    letter-spacing: 2px;
+    word-break: break-all;
+    pointer-events: none;
+    z-index: 1;
+    animation: matrixRain 8s linear infinite;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+/* Scanlines overlay for authentic CRT monitor effect */
+[data-theme="hacker"] body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(0deg,
+            transparent 0px,
+            transparent 2px,
+            rgba(0, 255, 0, 0.03) 2px,
+            rgba(0, 255, 0, 0.03) 4px);
+    pointer-events: none;
+    z-index: 1000;
+    animation: scanlines 0.1s linear infinite;
+}
+
+/* H4CK3R header with l33t speak */
+[data-theme="hacker"] .ge-header {
+    border: 2px solid var(--ge-primary);
+    box-shadow:
+        var(--ge-glow-matrix),
+        inset 0 0 20px rgba(0, 255, 0, 0.1);
+    position: relative;
+    background: var(--ge-bg-surface);
+    overflow: hidden;
+}
+
+[data-theme="hacker"] .ge-header::before {
+    content: '>>> 1N1714L1Z1NG H4CK3R 1NT3RF4C3... 4CC355 GR4NT3D <<<';
+    position: absolute;
+    top: -35px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: var(--ge-accent);
+    font-size: 0.7rem;
+    text-shadow: var(--ge-glow-cyan);
+    animation: glitchText 0.5s infinite;
+    font-family: var(--ge-font-family);
+    letter-spacing: 1px;
+}
+
+[data-theme="hacker"] .ge-header::after {
+    content: '[R00T@M41NFR4M3:~]$ █';
+    position: absolute;
+    bottom: -25px;
+    left: var(--ge-space-md);
+    color: var(--ge-primary);
+    font-size: 0.8rem;
+    text-shadow: var(--ge-glow-matrix);
+    animation: terminalCursor 1s infinite;
+    font-family: var(--ge-font-family);
+}
+
+[data-theme="hacker"] .ge-header h1 {
+    font-family: var(--ge-font-family);
+    text-shadow: var(--ge-glow-matrix);
+    animation: textGlitch 3s infinite;
+    font-weight: bold;
+    letter-spacing: 2px;
+    position: relative;
+    text-transform: none;
+}
+
+[data-theme="hacker"] .ge-header h1::before {
+    content: '[SYST3M_4CC3SS] ';
+    color: var(--ge-secondary);
+    text-shadow: var(--ge-glow-red);
+    font-size: 0.6em;
+}
+
+[data-theme="hacker"] .ge-header h1::after {
+    content: ' [0NL1N3]';
+    color: var(--ge-warning);
+    text-shadow: var(--ge-glow-yellow);
+    font-size: 0.6em;
+    animation: blink 1s infinite;
+}
+
+[data-theme="hacker"] .ge-header .subtitle {
+    color: var(--ge-text-secondary);
+    text-shadow: var(--ge-glow-matrix);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+[data-theme="hacker"] .ge-header .subtitle::before {
+    content: '>>> ';
+    color: var(--ge-accent);
+}
+
+[data-theme="hacker"] .ge-header .subtitle::after {
+    content: ' <<<';
+    color: var(--ge-accent);
+}
+
+/* Enhanced cards with matrix effects */
+[data-theme="hacker"] .ge-card {
+    border: 1px solid var(--ge-primary);
+    box-shadow:
+        0 0 15px rgba(0, 255, 0, 0.3),
+        inset 0 0 15px rgba(0, 255, 0, 0.1);
+    background: var(--ge-bg-surface);
+    position: relative;
+}
+
+[data-theme="hacker"] .ge-card:hover {
+    box-shadow:
+        0 0 25px rgba(0, 255, 0, 0.5),
+        inset 0 0 25px rgba(0, 255, 0, 0.15);
+    animation: cardPulse 1s ease-in-out;
+}
+
+/* 53RV1C3 cards with h4ck3r terminal styling */
+[data-theme="hacker"] .ge-service-card {
+    border: 1px solid var(--ge-primary);
+    box-shadow:
+        0 0 10px rgba(0, 255, 0, 0.3),
+        inset 0 0 10px rgba(0, 255, 0, 0.05);
+    background: var(--ge-bg-surface);
+    position: relative;
+    padding-top: calc(var(--ge-space-lg) + 20px);
+}
+
+[data-theme="hacker"] .ge-service-card::before {
+    content: '[53RV1C3_M0DUL3] ';
+    position: absolute;
+    top: var(--ge-space-sm);
+    left: var(--ge-space-sm);
+    color: var(--ge-accent);
+    font-weight: bold;
+    text-shadow: var(--ge-glow-cyan);
+    font-size: 0.7rem;
+    font-family: var(--ge-font-family);
+}
+
+[data-theme="hacker"] .ge-service-card::after {
+    content: '> ';
+    position: absolute;
+    top: calc(var(--ge-space-lg) + 5px);
+    left: var(--ge-space-sm);
+    color: var(--ge-warning);
+    font-weight: bold;
+    text-shadow: var(--ge-glow-yellow);
+    font-family: var(--ge-font-family);
+}
+
+[data-theme="hacker"] .ge-service-card h3 {
+    margin-left: var(--ge-space-md);
+    text-transform: none;
+    letter-spacing: 1px;
+    text-shadow: var(--ge-glow-matrix);
+    font-family: var(--ge-font-family);
+}
+
+[data-theme="hacker"] .ge-service-card:hover {
+    box-shadow:
+        0 0 20px rgba(0, 255, 0, 0.5),
+        inset 0 0 20px rgba(0, 255, 0, 0.1);
+    animation: serviceGlitch 0.2s ease-in-out;
+}
+
+/* Status indicators with Hollywood flair */
+[data-theme="hacker"] .ge-status-running {
+    color: var(--ge-primary);
+    text-shadow: var(--ge-glow-matrix);
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid var(--ge-primary);
+}
+
+[data-theme="hacker"] .ge-status-running::before {
+    content: '[ONLINE] ';
+    animation: blink 2s infinite;
+}
+
+[data-theme="hacker"] .ge-status-stopped {
+    color: var(--ge-secondary);
+    text-shadow: var(--ge-glow-red);
+    background: rgba(255, 0, 64, 0.1);
+    border: 1px solid var(--ge-secondary);
+}
+
+[data-theme="hacker"] .ge-status-stopped::before {
+    content: '[OFFLINE] ';
+}
+
+[data-theme="hacker"] .ge-status-error {
+    color: var(--ge-accent);
+    text-shadow: var(--ge-glow-yellow);
+    background: rgba(255, 255, 0, 0.1);
+    border: 1px solid var(--ge-accent);
+}
+
+[data-theme="hacker"] .ge-status-error::before {
+    content: '[ERROR] ';
+    animation: fastBlink 0.5s infinite;
+}
+
+/* L33T buttons with h4ck3r styling */
+[data-theme="hacker"] .ge-btn {
+    border: 1px solid var(--ge-primary);
+    background: rgba(0, 50, 0, 0.8);
+    color: var(--ge-primary);
+    text-transform: none;
+    letter-spacing: 1px;
+    font-family: var(--ge-font-family);
+    text-shadow: var(--ge-glow-matrix);
+    transition: all var(--ge-transition-base);
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 0 5px rgba(0, 255, 0, 0.3),
+        inset 0 0 5px rgba(0, 255, 0, 0.1);
+}
+
+[data-theme="hacker"] .ge-btn::before {
+    content: '[3X3C] ';
+    color: var(--ge-accent);
+    text-shadow: var(--ge-glow-cyan);
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+[data-theme="hacker"] .ge-btn:hover {
+    background: rgba(0, 80, 0, 0.9);
+    box-shadow:
+        0 0 15px rgba(0, 255, 0, 0.5),
+        inset 0 0 10px rgba(0, 255, 0, 0.2);
+    text-shadow: var(--ge-glow-matrix);
+    animation: buttonHack 0.3s ease-in-out;
+}
+
+[data-theme="hacker"] .ge-btn:hover::after {
+    content: ' >>';
+    color: var(--ge-warning);
+    text-shadow: var(--ge-glow-yellow);
+    animation: textGlitch 0.2s infinite;
+}
+
+[data-theme="hacker"] .ge-btn-primary {
+    background: var(--ge-bg-surface);
+    color: var(--ge-primary);
+    border-color: var(--ge-primary);
+}
+
+[data-theme="hacker"] .ge-btn-primary:hover {
+    background: rgba(0, 255, 0, 0.2);
+    color: var(--ge-text-inverted);
+    text-shadow: none;
+}
+
+/* 1NPUT f13ld5 with terminal l33t styling */
+[data-theme="hacker"] input,
+[data-theme="hacker"] textarea,
+[data-theme="hacker"] select {
+    background: var(--ge-bg-surface);
+    border: 1px solid var(--ge-primary);
+    color: var(--ge-primary);
+    font-family: var(--ge-font-family);
+    text-shadow: var(--ge-glow-matrix);
+    position: relative;
+    box-shadow:
+        0 0 5px rgba(0, 255, 0, 0.2),
+        inset 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="hacker"] input::placeholder {
+    color: var(--ge-text-dim);
+    text-shadow: none;
+}
+
+[data-theme="hacker"] input:focus,
+[data-theme="hacker"] textarea:focus,
+[data-theme="hacker"] select:focus {
+    box-shadow:
+        0 0 10px rgba(0, 255, 0, 0.5),
+        inset 0 0 10px rgba(0, 255, 0, 0.1);
+    border-color: var(--ge-accent);
+    animation: inputHack 0.5s ease-in-out;
+}
+
+@keyframes matrixRain {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(100vh);
+        opacity: 0;
+    }
+}
+
+@keyframes scanlines {
+    0% {
+        transform: translateY(0);
+    }
+
+    100% {
+        transform: translateY(4px);
+    }
+}
+
+@keyframes textGlitch {
+
+    0%,
+    90%,
+    100% {
+        text-shadow: var(--ge-glow-matrix);
+        transform: translateX(0);
+    }
+
+    95% {
+        text-shadow:
+            2px 0 var(--ge-secondary),
+            -2px 0 var(--ge-accent),
+            0 0 10px var(--ge-primary);
+        transform: translate(1px, 0);
+    }
+
+    97% {
+        text-shadow: var(--ge-glow-matrix);
+        transform: translate(-1px, 0);
+    }
+}
+
+@keyframes glitchText {
+
+    0%,
+    90%,
+    100% {
+        text-shadow: var(--ge-glow-cyan);
+        transform: translateX(0);
+    }
+
+    95% {
+        text-shadow: 2px 0 var(--ge-secondary), -2px 0 var(--ge-warning);
+        transform: translateX(2px);
+    }
+
+    97% {
+        text-shadow: var(--ge-glow-cyan);
+        transform: translateX(-2px);
+    }
+}
+
+@keyframes terminalCursor {
+
+    0%,
+    50% {
+        opacity: 1;
+    }
+
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes serviceGlitch {
+
+    0%,
+    100% {
+        transform: translateX(0);
+        filter: hue-rotate(0deg);
+    }
+
+    25% {
+        transform: translateX(-1px);
+        filter: hue-rotate(5deg);
+    }
+
+    75% {
+        transform: translateX(1px);
+        filter: hue-rotate(-5deg);
+    }
+}
+
+@keyframes buttonHack {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes inputHack {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+}

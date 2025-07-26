@@ -1,12 +1,13 @@
 /*
  * GoogleEmu Web Components Library
- * Version: 1.0.0
+ * Version: 1.5.0
  * 
  * JavaScript utilities and components for GoogleEmu frontend interfaces
  */
 
 class GoogleEmuComponents {
-    static version = "1.0.0";
+    static version = "1.5.0";
+    static version = "1.2.0";
 
     constructor() {
         this.currentTheme = localStorage.getItem('ge-theme') || 'glassmorphism';
@@ -34,28 +35,35 @@ class GoogleEmuComponents {
     }
 
     setupThemeSwitcher() {
-        const existing = document.querySelector('.ge-theme-switcher');
-        if (existing) return;
+        let select = document.getElementById('ge-theme-select');
 
-        const switcher = document.createElement('div');
-        switcher.className = 'ge-theme-switcher';
-        switcher.innerHTML = `
-            <select id="ge-theme-select">
-                <option value="glassmorphism">🌌 Glassmorphism</option>
-                <option value="professional">💼 Professional</option>
-                <option value="hacker">🖥️ Hacker</option>
-                <option value="puppies">🐕 Puppies</option>
-                <option value="weyland">🛸 Weyland-Yutani</option>
-            </select>
-        `;
+        // If no existing theme switcher, create one
+        if (!select) {
+            const switcher = document.createElement('div');
+            switcher.className = 'ge-theme-switcher';
+            switcher.innerHTML = `
+                <select id="ge-theme-select">
+                    <option value="glassmorphism">🌌 Glassmorphism</option>
+                    <option value="professional">💼 Professional</option>
+                    <option value="hacker">🖥️ Hacker</option>
+                    <option value="puppies">🐕 Puppies</option>
+                    <option value="weyland">🛸 Weyland-Yutani</option>
+                    <option value="line-minimum">📝 Line Minimum</option>
+                    <option value="waifu">🌸 Waifu/UwU</option>
+                </select>
+            `;
 
-        document.body.appendChild(switcher);
+            document.body.appendChild(switcher);
+            select = document.getElementById('ge-theme-select');
+        }
 
-        const select = document.getElementById('ge-theme-select');
-        select.value = this.currentTheme;
-        select.addEventListener('change', (e) => {
-            this.applyTheme(e.target.value);
-        });
+        // Set current theme and add event listener
+        if (select) {
+            select.value = this.currentTheme;
+            select.addEventListener('change', (e) => {
+                this.applyTheme(e.target.value);
+            });
+        }
     }
 
     // Auto-refresh functionality
