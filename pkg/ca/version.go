@@ -8,4 +8,4 @@ package ca
 //   - v1.7.0: Added Google Cloud emulator environment variable detection
 //   - v1.6.0: Added UpdateTransportMust function for panic-based transport updates
 //   - v1.5.0: HTTPS-only server enforcement, API returns SecureHTTPSServer
-const Version = "v1.7.0"
+const Version = "1.7.0"

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "v0.1.0"
+const Version = "0.1.0"
 
 // BinaryType represents the type of binary file
 type BinaryType int

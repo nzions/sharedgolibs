@@ -38,7 +38,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const Version = "v0.3.0"
+const Version = "0.3.0"
 
 // ServiceType represents the type of service discovered
 type ServiceType string

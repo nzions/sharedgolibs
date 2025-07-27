@@ -6,7 +6,7 @@ package autoport
 
 import "time"
 
-const Version = "v0.1.0"
+const Version = "0.1.0"
 
 // ServiceConfig represents a service configuration with port mappings
 type ServiceConfig struct {

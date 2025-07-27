@@ -8,7 +8,7 @@ import (
 )
 
 // Version of the logi package
-const Version = "v0.1.0"
+const Version = "0.1.0"
 
 // LogiLogger defines the interface for logging in the Logi package.
 type Logger interface {
