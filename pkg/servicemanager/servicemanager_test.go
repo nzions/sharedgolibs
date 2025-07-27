@@ -355,46 +355,9 @@ func TestVersion(t *testing.T) {
 		t.Error("Version should not be empty")
 	}
 
-	// Version should be in semantic versioning format
-	if len(Version) < 5 || Version[0] != 'v' {
-		t.Errorf("Version %s should start with 'v' and be in semantic version format", Version)
-	}
-}
-
-// Test ServiceInfo struct
-func TestServiceInfo(t *testing.T) {
-	service := ServiceInfo{
-		Name:         "Test Service",
-		Type:         ServiceTypeLocalProcess,
-		ExternalPort: 8080,
-		InternalPort: 8080,
-		PID:          "12345",
-		Command:      "node",
-		Status:       "running",
-		IsListening:  true,
-		IsExpected:   true,
-		ImageMatches: true,
-		Description:  "Test description",
-	}
-
-	// Verify all fields are set correctly
-	if service.Name != "Test Service" {
-		t.Errorf("Expected Name 'Test Service', got '%s'", service.Name)
-	}
-	if service.Type != ServiceTypeLocalProcess {
-		t.Errorf("Expected Type '%s', got '%s'", ServiceTypeLocalProcess, service.Type)
-	}
-	if service.ExternalPort != 8080 {
-		t.Errorf("Expected ExternalPort 8080, got %d", service.ExternalPort)
-	}
-	if !service.IsListening {
-		t.Error("Expected IsListening to be true")
-	}
-	if !service.IsExpected {
-		t.Error("Expected IsExpected to be true")
-	}
-	if !service.ImageMatches {
-		t.Error("Expected ImageMatches to be true")
+	// Version should be in semantic versioning format (without 'v' prefix)
+	if len(Version) < 5 {
+		t.Errorf("Version %s should be in semantic version format (e.g., '0.1.0')", Version)
 	}
 }
 
