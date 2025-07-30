@@ -20,6 +20,8 @@ import (
 type CertStorage interface {
 	// GenerateAndStore generates a certificate and stores it atomically
 	GenerateAndStore(ca *CA, serviceName, serviceIP string, domains []string) (string, string, error)
+	// GenerateAndStoreV2 generates a certificate using V2 API with automatic IP detection
+	GenerateAndStoreV2(ca *CA, serviceName string, sans []string) (string, string, error)
 	// GetAll returns all stored certificates
 	GetAll() ([]*IssuedCert, error)
 	// GetBySerial returns a certificate by serial number
@@ -47,6 +49,24 @@ func NewRAMStorage() *RAMStorage {
 func (s *RAMStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, domains []string) (string, string, error) {
 	// Generate the certificate
 	serviceCertPEM, serviceKeyPEM, issuedCert, err := s.generateCertificate(ca, serviceName, serviceIP, domains)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Store atomically
+	s.mutex.Lock()
+	s.certs[issuedCert.SerialNumber] = issuedCert
+	s.mutex.Unlock()
+
+	return serviceCertPEM, serviceKeyPEM, nil
+}
+
+// GenerateAndStoreV2 generates a certificate using the V2 API with automatic IP detection
+// and stores it atomically in memory.
+func (s *RAMStorage) GenerateAndStoreV2(ca *CA, serviceName string, sans []string) (string, string, error) {
+	// Use the existing generateCertificate method but pass empty serviceIP since
+	// IP addresses are now included in the sans array
+	serviceCertPEM, serviceKeyPEM, issuedCert, err := s.generateCertificate(ca, serviceName, "", sans)
 	if err != nil {
 		return "", "", err
 	}
@@ -152,6 +172,31 @@ func (s *DiskStorage) GenerateAndStore(ca *CA, serviceName, serviceIP string, do
 	return serviceCertPEM, serviceKeyPEM, nil
 }
 
+// GenerateAndStoreV2 generates a certificate using the V2 API with automatic IP detection
+// and stores it atomically to disk.
+func (s *DiskStorage) GenerateAndStoreV2(ca *CA, serviceName string, sans []string) (string, string, error) {
+	// Use the existing generateCertificate method but pass empty serviceIP since
+	// IP addresses are now included in the sans array
+	serviceCertPEM, serviceKeyPEM, issuedCert, err := s.generateCertificate(ca, serviceName, "", sans)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Store atomically (both in memory and on disk)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.certs[issuedCert.SerialNumber] = issuedCert
+	err = s.saveToDisk()
+	if err != nil {
+		// Rollback the in-memory change if disk save fails
+		delete(s.certs, issuedCert.SerialNumber)
+		return "", "", fmt.Errorf("failed to persist certificate to disk: %w", err)
+	}
+
+	return serviceCertPEM, serviceKeyPEM, nil
+}
+
 // GetAll returns all certificates from disk storage.
 // Returns a slice of IssuedCert pointers and error if retrieval fails.
 func (s *DiskStorage) GetAll() ([]*IssuedCert, error) {
@@ -213,11 +258,38 @@ func generateCertificateInternal(ca *CA, serviceName, serviceIP string, domains 
 		return "", "", nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
 
+	// Validate that domains/SANs is not empty
+	if len(domains) == 0 {
+		return "", "", nil, fmt.Errorf("domains/SANs cannot be empty")
+	}
+
+	// Determine the CommonName with new logic:
+	// 1. Use first non-IP domain if available
+	// 2. If only IPs, use first IP as CN
+	// 3. Never add .local suffix - use exactly what client supplies
+	var commonName string
+	var foundHostname bool
+
+	// First pass: look for non-IP domains
+	for _, domain := range domains {
+		if net.ParseIP(domain) == nil {
+			// This is not an IP address, use it as CN
+			commonName = domain
+			foundHostname = true
+			break
+		}
+	}
+
+	// If no hostname found, use first IP as CN
+	if !foundHostname {
+		commonName = domains[0] // Use first IP address as CN
+	}
+
 	// Create certificate template
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName:   serviceName + ".local",
+			CommonName:   commonName,
 			Organization: []string{"SharedGoLibs Services"},
 		},
 		NotBefore:             time.Now(),

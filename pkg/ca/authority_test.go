@@ -141,7 +141,8 @@ func TestGenerateCertificate(t *testing.T) {
 	}
 
 	// Verify certificate properties
-	expectedCN := serviceName + ".local"
+	// With the new CN selection logic, the first non-IP domain becomes the CN
+	expectedCN := "test.example.com" // first non-IP domain from the domains list
 	if cert.Subject.CommonName != expectedCN {
 		t.Errorf("Expected CommonName '%s', got '%s'", expectedCN, cert.Subject.CommonName)
 	}
@@ -218,6 +219,149 @@ func TestIssueServiceCertificate(t *testing.T) {
 
 	if !responseCACert.Equal(ca.Certificate()) {
 		t.Error("CA certificate in response does not match CA certificate")
+	}
+}
+
+func TestIssueServiceCertificateV2(t *testing.T) {
+	ca, err := NewCA(nil)
+	if err != nil {
+		t.Fatalf("Failed to create CA: %v", err)
+	}
+
+	// Test V2 API with automatic IP detection and CN selection
+	req := CertRequestV2{
+		ServiceName: "test-service-v2",
+		SANs:        []string{"api.example.com", "backup.example.com", "192.168.1.100", "127.0.0.1"},
+	}
+
+	response, err := ca.IssueServiceCertificateV2(req)
+	if err != nil {
+		t.Fatalf("Failed to issue service certificate with V2 API: %v", err)
+	}
+
+	if response.Certificate == "" {
+		t.Fatal("Certificate in response is empty")
+	}
+
+	if response.PrivateKey == "" {
+		t.Fatal("Private key in response is empty")
+	}
+
+	if response.CACert == "" {
+		t.Fatal("CA certificate in response is empty")
+	}
+
+	// Parse and verify the certificate
+	block, _ := pem.Decode([]byte(response.Certificate))
+	if block == nil {
+		t.Fatal("Failed to decode certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	// Verify CN is the first non-IP SAN (api.example.com)
+	expectedCN := "api.example.com"
+	if cert.Subject.CommonName != expectedCN {
+		t.Errorf("Expected CommonName '%s', got '%s'", expectedCN, cert.Subject.CommonName)
+	}
+
+	// Verify DNS names include all non-IP SANs
+	expectedDNS := []string{"api.example.com", "backup.example.com"}
+	if len(cert.DNSNames) != len(expectedDNS) {
+		t.Errorf("Expected %d DNS names, got %d", len(expectedDNS), len(cert.DNSNames))
+	}
+	for i, expected := range expectedDNS {
+		if i >= len(cert.DNSNames) || cert.DNSNames[i] != expected {
+			t.Errorf("Expected DNS name %d to be '%s', got '%s'", i, expected, cert.DNSNames[i])
+		}
+	}
+
+	// Verify IP addresses include all IP SANs
+	expectedIPs := []string{"192.168.1.100", "127.0.0.1"}
+	if len(cert.IPAddresses) != len(expectedIPs) {
+		t.Errorf("Expected %d IP addresses, got %d", len(expectedIPs), len(cert.IPAddresses))
+	}
+	for i, expectedIP := range expectedIPs {
+		if i >= len(cert.IPAddresses) || cert.IPAddresses[i].String() != expectedIP {
+			t.Errorf("Expected IP address %d to be '%s', got '%s'", i, expectedIP, cert.IPAddresses[i].String())
+		}
+	}
+}
+
+func TestIssueServiceCertificateV2_IPOnly(t *testing.T) {
+	ca, err := NewCA(nil)
+	if err != nil {
+		t.Fatalf("Failed to create CA: %v", err)
+	}
+
+	// Test V2 API with only IP addresses
+	req := CertRequestV2{
+		ServiceName: "ip-only-service",
+		SANs:        []string{"192.168.1.100", "10.0.0.50"},
+	}
+
+	response, err := ca.IssueServiceCertificateV2(req)
+	if err != nil {
+		t.Fatalf("Failed to issue service certificate with IP-only SANs: %v", err)
+	}
+
+	// Parse and verify the certificate
+	block, _ := pem.Decode([]byte(response.Certificate))
+	if block == nil {
+		t.Fatal("Failed to decode certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+
+	// Verify CN is the first IP address
+	expectedCN := "192.168.1.100"
+	if cert.Subject.CommonName != expectedCN {
+		t.Errorf("Expected CommonName '%s', got '%s'", expectedCN, cert.Subject.CommonName)
+	}
+
+	// Verify no DNS names (only IPs)
+	if len(cert.DNSNames) != 0 {
+		t.Errorf("Expected 0 DNS names for IP-only certificate, got %d", len(cert.DNSNames))
+	}
+
+	// Verify IP addresses
+	expectedIPs := []string{"192.168.1.100", "10.0.0.50"}
+	if len(cert.IPAddresses) != len(expectedIPs) {
+		t.Errorf("Expected %d IP addresses, got %d", len(expectedIPs), len(cert.IPAddresses))
+	}
+	for i, expectedIP := range expectedIPs {
+		if i >= len(cert.IPAddresses) || cert.IPAddresses[i].String() != expectedIP {
+			t.Errorf("Expected IP address %d to be '%s', got '%s'", i, expectedIP, cert.IPAddresses[i].String())
+		}
+	}
+}
+
+func TestIssueServiceCertificateV2_EmptySANs(t *testing.T) {
+	ca, err := NewCA(nil)
+	if err != nil {
+		t.Fatalf("Failed to create CA: %v", err)
+	}
+
+	// Test V2 API with empty SANs should return error
+	req := CertRequestV2{
+		ServiceName: "invalid-service",
+		SANs:        []string{},
+	}
+
+	_, err = ca.IssueServiceCertificateV2(req)
+	if err == nil {
+		t.Fatal("Expected error for empty SANs, but got success")
+	}
+
+	expectedError := "domains/SANs cannot be empty"
+	if !strings.Contains(err.Error(), expectedError) {
+		t.Errorf("Expected error containing '%s', got '%s'", expectedError, err.Error())
 	}
 }
 

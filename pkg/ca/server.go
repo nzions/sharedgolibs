@@ -4,6 +4,7 @@ package ca
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -211,8 +212,37 @@ func (s *Server) handleCertRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Read the raw body first so we can attempt both formats
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("[ca] Failed to read request body from %s: %v", r.RemoteAddr, err)
+		http.Error(w, "Failed to read request", http.StatusBadRequest)
+		return
+	}
+
+	// Try to decode as V2 format first (CertRequestV2)
+	var reqV2 CertRequestV2
+	if err := json.Unmarshal(bodyBytes, &reqV2); err == nil && reqV2.ServiceName != "" && len(reqV2.SANs) > 0 {
+		// This looks like a V2 request, handle it
+		log.Printf("[ca] Certificate request (V2) from %s for service: %s, SANs: %v", r.RemoteAddr, reqV2.ServiceName, reqV2.SANs)
+
+		// Issue certificate using the CA with V2 format
+		response, err := s.ca.IssueServiceCertificateV2(reqV2)
+		if err != nil {
+			log.Printf("[ca] Failed to generate certificate for %s: %v", reqV2.ServiceName, err)
+			http.Error(w, "Certificate generation failed", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		log.Printf("[ca] ✅ Certificate issued for %s (V2)", reqV2.ServiceName)
+		return
+	}
+
+	// Fall back to V1 format (CertRequest)
 	var req CertRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		log.Printf("[ca] Invalid certificate request from %s: %v", r.RemoteAddr, err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
@@ -231,7 +261,7 @@ func (s *Server) handleCertRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[ca] Certificate request from %s for service: %s, IP: %s, domains: %v", r.RemoteAddr, req.ServiceName, req.ServiceIP, req.Domains)
+	log.Printf("[ca] Certificate request (V1) from %s for service: %s, IP: %s, domains: %v", r.RemoteAddr, req.ServiceName, req.ServiceIP, req.Domains)
 
 	// Issue certificate using the CA
 	response, err := s.ca.IssueServiceCertificate(req)
@@ -244,7 +274,7 @@ func (s *Server) handleCertRequest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 
-	log.Printf("[ca] ✅ Certificate issued for %s", req.ServiceName)
+	log.Printf("[ca] ✅ Certificate issued for %s (V1)", req.ServiceName)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
