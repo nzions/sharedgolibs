@@ -77,13 +77,26 @@ type dualListener struct {
 // dualConn wraps net.Conn to detect TLS vs HTTP protocol
 type dualConn struct {
 	net.Conn
-	reader    *bufio.Reader
-	tlsConfig *tls.Config
-	detected  bool
-	isTLS     bool
-	buffer    []byte
-	connInfo  *ConnectionInfo
-	logger    Logger
+	originalConn net.Conn // Store original connection to avoid circular references
+	reader       *bufio.Reader
+	tlsConfig    *tls.Config
+	detected     bool
+	isTLS        bool
+	buffer       []byte
+	connInfo     *ConnectionInfo
+	logger       Logger
+}
+
+// bufferedConn wraps a connection to use a buffered reader for reads
+// while delegating other operations to the underlying connection
+type bufferedConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+// Read reads data from the buffered reader
+func (bc *bufferedConn) Read(b []byte) (int, error) {
+	return bc.reader.Read(b)
 }
 
 // GetConnectionInfo returns the connection info for this connection
@@ -173,10 +186,11 @@ func (l *dualListener) Accept() (net.Conn, error) {
 	}
 
 	return &dualConn{
-		Conn:      conn,
-		reader:    bufio.NewReader(conn),
-		tlsConfig: l.tlsConfig,
-		logger:    l.logger,
+		Conn:         conn,
+		originalConn: conn, // Store original connection
+		reader:       bufio.NewReader(conn),
+		tlsConfig:    l.tlsConfig,
+		logger:       l.logger,
 		connInfo: &ConnectionInfo{
 			RemoteAddr: conn.RemoteAddr().String(),
 			DetectedAt: time.Now(),
@@ -244,8 +258,15 @@ func (c *dualConn) upgradeToTLS() error {
 		return fmt.Errorf("TLS config not provided for TLS connection")
 	}
 
-	// Create TLS server connection
-	tlsConn := tls.Server(c, c.tlsConfig)
+	// Create a connection wrapper that uses the buffered reader for reads
+	// but delegates other operations to the original connection
+	wrappedConn := &bufferedConn{
+		Conn:   c.originalConn,
+		reader: c.reader,
+	}
+
+	// Create TLS server connection using the wrapped connection
+	tlsConn := tls.Server(wrappedConn, c.tlsConfig)
 
 	// Perform TLS handshake with timeout
 	handshakeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

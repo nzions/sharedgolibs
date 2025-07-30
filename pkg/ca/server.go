@@ -220,6 +220,9 @@ func (s *Server) handleCertRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log all incoming requests for debugging
+	log.Printf("[ca] Raw certificate request from %s: %s", r.RemoteAddr, string(bodyBytes))
+
 	// Try to decode as V2 format first (CertRequestV2)
 	var reqV2 CertRequestV2
 	var reqV2Raw map[string]interface{}

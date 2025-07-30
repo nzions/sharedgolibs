@@ -4,7 +4,9 @@ package ca
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"time"
@@ -37,6 +39,9 @@ func CreateSecureDualProtocolServer(serviceName, port string, sans []string, han
 	if err != nil {
 		return nil, fmt.Errorf("failed to request certificate: %w", err)
 	}
+
+	// Print certificate details once issued
+	printCertificateDetails(serviceName, certResp.Certificate, logger)
 
 	// Parse the certificate and key
 	cert, err := tls.X509KeyPair([]byte(certResp.Certificate), []byte(certResp.PrivateKey))
@@ -125,4 +130,45 @@ func writeJSONResponse(w http.ResponseWriter, data interface{}) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
+}
+
+// printCertificateDetails parses and prints certificate details for debugging and information
+func printCertificateDetails(serviceName, certPEM string, logger logi.Logger) {
+	// Parse the certificate PEM
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		logger.Warn("Failed to decode certificate PEM", "service", serviceName)
+		return
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		logger.Warn("Failed to parse certificate", "service", serviceName, "error", err)
+		return
+	}
+
+	// Print certificate details using structured logging
+	logger.Info("🔐 Certificate issued successfully",
+		"service", serviceName,
+		"common_name", cert.Subject.CommonName,
+		"serial_number", fmt.Sprintf("%x", cert.SerialNumber),
+		"dns_names", cert.DNSNames,
+		"dns_count", len(cert.DNSNames),
+		"ip_addresses", cert.IPAddresses,
+		"ip_count", len(cert.IPAddresses),
+		"issued_at", cert.NotBefore.Format("2006-01-02 15:04:05 MST"),
+		"expires_at", cert.NotAfter.Format("2006-01-02 15:04:05 MST"),
+		"valid_for_days", int(cert.NotAfter.Sub(cert.NotBefore).Hours()/24),
+		"issuer", cert.Issuer.CommonName,
+		"signature_algorithm", cert.SignatureAlgorithm.String(),
+		"key_usage", cert.KeyUsage,
+	)
+
+	// Also print a more user-friendly summary
+	logger.Info("📄 Certificate summary",
+		"service", serviceName,
+		"subject", cert.Subject.String(),
+		"san_count", len(cert.DNSNames)+len(cert.IPAddresses),
+		"certificate_length", len(certPEM),
+	)
 }
