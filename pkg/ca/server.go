@@ -222,41 +222,63 @@ func (s *Server) handleCertRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Try to decode as V2 format first (CertRequestV2)
 	var reqV2 CertRequestV2
-	if err := json.Unmarshal(bodyBytes, &reqV2); err == nil && reqV2.ServiceName != "" && len(reqV2.SANs) > 0 {
-		// This looks like a V2 request, handle it
-		log.Printf("[ca] Certificate request (V2) from %s for service: %s, SANs: %v", r.RemoteAddr, reqV2.ServiceName, reqV2.SANs)
+	var reqV2Raw map[string]interface{}
 
-		// Issue certificate using the CA with V2 format
-		response, err := s.ca.IssueServiceCertificateV2(reqV2)
-		if err != nil {
-			log.Printf("[ca] Failed to generate certificate for %s: %v", reqV2.ServiceName, err)
-			http.Error(w, "Certificate generation failed", http.StatusInternalServerError)
-			return
+	// First check if this looks like a V2 request by checking for "sans" field
+	if err := json.Unmarshal(bodyBytes, &reqV2Raw); err == nil {
+		if _, hasSANs := reqV2Raw["sans"]; hasSANs {
+			// This has a "sans" field, so it's likely a V2 request
+			if err := json.Unmarshal(bodyBytes, &reqV2); err == nil && reqV2.ServiceName != "" && len(reqV2.SANs) > 0 {
+				// Valid V2 request
+				log.Printf("[ca] Certificate request (V2) from %s for service: %s, SANs: %v", r.RemoteAddr, reqV2.ServiceName, reqV2.SANs)
+
+				// Issue certificate using the CA with V2 format
+				response, err := s.ca.IssueServiceCertificateV2(reqV2)
+				if err != nil {
+					log.Printf("[ca] Failed to generate certificate for %s: %v", reqV2.ServiceName, err)
+					http.Error(w, "Certificate generation failed", http.StatusInternalServerError)
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(response)
+				log.Printf("[ca] ✅ Certificate issued for %s (V2)", reqV2.ServiceName)
+				return
+			} else {
+				// Invalid V2 request
+				if err := json.Unmarshal(bodyBytes, &reqV2); err == nil {
+					if reqV2.ServiceName == "" {
+						log.Printf("[ca] Invalid V2 certificate request from %s: missing service_name (payload: %s)", r.RemoteAddr, string(bodyBytes))
+						http.Error(w, "service_name is required for V2 API", http.StatusBadRequest)
+						return
+					}
+					if len(reqV2.SANs) == 0 {
+						log.Printf("[ca] Invalid V2 certificate request from %s: missing SANs (payload: %s)", r.RemoteAddr, string(bodyBytes))
+						http.Error(w, "sans (Subject Alternative Names) are required for V2 API", http.StatusBadRequest)
+						return
+					}
+				}
+			}
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-		log.Printf("[ca] ✅ Certificate issued for %s (V2)", reqV2.ServiceName)
-		return
 	}
 
 	// Fall back to V1 format (CertRequest)
 	var req CertRequest
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
-		log.Printf("[ca] Invalid certificate request from %s: %v", r.RemoteAddr, err)
+		log.Printf("[ca] Invalid certificate request from %s: %v (payload: %s)", r.RemoteAddr, err, string(bodyBytes))
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
 	// Validate the request using the same validation as IssueServiceCertificate
 	if req.ServiceName == "" {
-		log.Printf("[ca] Invalid certificate request from %s: missing service_name", r.RemoteAddr)
+		log.Printf("[ca] Invalid certificate request from %s: missing service_name (payload: %s)", r.RemoteAddr, string(bodyBytes))
 		http.Error(w, "service_name is required", http.StatusBadRequest)
 		return
 	}
 
 	if len(req.Domains) == 0 {
-		log.Printf("[ca] Invalid certificate request from %s: missing domains", r.RemoteAddr)
+		log.Printf("[ca] Invalid certificate request from %s: missing domains (payload: %s)", r.RemoteAddr, string(bodyBytes))
 		http.Error(w, "domains are required", http.StatusBadRequest)
 		return
 	}

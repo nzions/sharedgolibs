@@ -12,8 +12,9 @@ package ca
 //   - Added CertRequestV2 struct with simplified ServiceName + SANs format
 //   - Enhanced server to auto-detect V1 vs V2 request formats
 //   - Added comprehensive validation for empty SANs with proper error handling
+//   - v2.0.1: Improved error logging for certificate request validation with request payload details
 //   - v1.8.0: Added dual protocol transport server for handling HTTP and HTTPS on same port
 //   - v1.7.0: Added Google Cloud emulator environment variable detection
 //   - v1.6.0: Added UpdateTransportMust function for panic-based transport updates
 //   - v1.5.0: HTTPS-only server enforcement, API returns SecureHTTPSServer
-const Version = "2.0.0"
+const Version = "2.0.1"
