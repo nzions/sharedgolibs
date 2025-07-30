@@ -46,6 +46,12 @@ type CertRequest struct {
 	Domains     []string `json:"domains"`
 }
 
+// CertRequestV2 represents a request for a new certificate using the new SAN-based API
+type CertRequestV2 struct {
+	ServiceName string   `json:"service_name"`
+	SANs        []string `json:"sans"` // Subject Alternative Names - mix of IPs and hostnames
+}
+
 // CertResponse represents the response containing the issued certificate
 type CertResponse struct {
 	Certificate string `json:"certificate"`
@@ -273,6 +279,32 @@ func (ca *CA) IssueServiceCertificate(req CertRequest) (*CertResponse, error) {
 	}, nil
 }
 
+// IssueServiceCertificateV2 issues a new certificate using the simplified V2 API.
+// This method automatically detects IP addresses in the SANs list and uses the first
+// non-IP SAN as the Common Name, providing a cleaner API for modern certificate requests.
+//
+// Parameters:
+//   - req: CertRequestV2 containing ServiceName and SANs array
+//
+// Returns a CertResponse containing the certificate, private key, and CA certificate.
+// Example:
+//
+//	resp, err := ca.IssueServiceCertificateV2(ca.CertRequestV2{ServiceName: "api", SANs: []string{"api.local", "192.168.1.100"}})
+func (ca *CA) IssueServiceCertificateV2(req CertRequestV2) (*CertResponse, error) {
+	certPEM, keyPEM, err := ca.GenerateCertificateV2(req.ServiceName, req.SANs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate certificate: %w", err)
+	}
+
+	caCertPEM := ca.CertificatePEM()
+
+	return &CertResponse{
+		Certificate: certPEM,
+		PrivateKey:  keyPEM,
+		CACert:      string(caCertPEM),
+	}, nil
+}
+
 // GenerateCertificate generates a certificate and private key for the specified service and domains.
 // Returns PEM-encoded certificate, private key, and error if any.
 // GenerateCertificate generates a certificate and private key for the specified service and domains.
@@ -280,6 +312,20 @@ func (ca *CA) IssueServiceCertificate(req CertRequest) (*CertResponse, error) {
 func (ca *CA) GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error) {
 	// Delegate to storage for thread-safe generation and storage
 	return ca.storage.GenerateAndStore(ca, serviceName, serviceIP, domains)
+}
+
+// GenerateCertificateV2 generates a certificate using the simplified V2 API with automatic IP detection.
+// The SANs array can contain both hostnames and IP addresses, and the method will automatically
+// detect which is which and use the first non-IP SAN as the Common Name.
+//
+// Parameters:
+//   - serviceName: Name of the service requesting the certificate
+//   - sans: Subject Alternative Names (hostnames and IP addresses)
+//
+// Returns PEM-encoded certificate, private key, and error if any.
+func (ca *CA) GenerateCertificateV2(serviceName string, sans []string) (string, string, error) {
+	// Delegate to storage for thread-safe generation and storage with V2 API
+	return ca.storage.GenerateAndStoreV2(ca, serviceName, sans)
 }
 
 // GetIssuedCertificates returns a slice of all certificates issued by this CA.

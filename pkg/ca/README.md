@@ -4,7 +4,9 @@
 
 The CA package provides comprehensive Certificate Authority functionality for development and testing environments, enabling dynamic certificate issuance, persistent storage, thread-safe operations, gRPC support, and HTTP transport integration.
 
-## Version: v1.4.0
+## Version: v2.0.0
+
+🎉 **NEW in v2.0.0**: Simplified V2 API with automatic IP detection and enhanced CN selection!
 
 ## Features
 
@@ -107,6 +109,110 @@ func main() {
     if err := server.Start(); err != nil {
         log.Fatal(err)
     }
+}
+```
+
+## 🚀 V2 API - Simplified Certificate Requests
+
+The V2 API provides a cleaner interface with automatic IP detection and enhanced CN selection.
+
+### V2 Certificate Generation
+
+```go
+package main
+
+import (
+    "log"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    certificateAuthority, err := ca.NewCA(nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // V2 API: Simplified request with automatic IP detection
+    req := ca.CertRequestV2{
+        ServiceName: "my-service",
+        SANs:        []string{"api.example.com", "service.local", "192.168.1.100", "127.0.0.1"},
+    }
+    
+    resp, err := certificateAuthority.IssueServiceCertificateV2(req)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Printf("Certificate issued for: %s", req.ServiceName)
+    // CN will be "api.example.com" (first non-IP SAN)
+}
+```
+
+### V2 Client-Side Certificate Requests
+
+```go
+package main
+
+import (
+    "log"
+    "os"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    // Set environment variables for CA server
+    os.Setenv("SGL_CA", "http://localhost:8090")
+    os.Setenv("SGL_CA_API_KEY", "my-api-key")
+    
+    // Request certificate using V2 API
+    resp, err := ca.RequestCertificateV2("my-service", []string{
+        "api.example.com", "service.local", "192.168.1.100",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Printf("Certificate: %s", resp.Certificate)
+}
+```
+
+### V2 CN Selection Rules
+
+The V2 API uses intelligent CN selection:
+
+1. **First non-IP domain** → CN (e.g., `["api.example.com", "192.168.1.1"]` → CN: `"api.example.com"`)
+2. **Only IP addresses** → First IP as CN (e.g., `["192.168.1.100", "10.0.0.1"]` → CN: `"192.168.1.100"`)
+3. **Empty SANs** → Error (proper validation)
+4. **No `.local` suffix** → Uses exactly what client provides
+
+### V2 Dual Protocol Server
+
+```go
+package main
+
+import (
+    "log"
+    "os"
+    "github.com/nzions/sharedgolibs/pkg/ca"
+)
+
+func main() {
+    os.Setenv("SGL_CA", "http://localhost:8090")
+    
+    // V2 API: Simplified dual protocol server
+    server, err := ca.CreateSecureDualProtocolServer(
+        "my-service",                               // service name
+        "8443",                                     // port
+        []string{"localhost", "my-service.local", "127.0.0.1"}, // SANs
+        nil,                                        // handler (nil = default)
+        nil,                                        // logger (nil = default)
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Println("Starting dual protocol server on :8443")
+    log.Fatal(server.ListenAndServe())
 }
 ```
 
@@ -307,6 +413,21 @@ type CertResponse struct {
 }
 ```
 
+#### CertRequestV2 🆕
+Simplified V2 request for certificate issuance:
+```go
+type CertRequestV2 struct {
+    ServiceName string   `json:"service_name"` // Service identifier
+    SANs        []string `json:"sans"`         // Subject Alternative Names (domains + IPs)
+}
+```
+
+**V2 Benefits:**
+- **Automatic IP Detection**: No need to separate IPs from domains
+- **Smart CN Selection**: First non-IP domain becomes CN, or first IP if no domains
+- **Simplified API**: Single SANs array instead of separate ServiceIP + Domains
+- **Clean Validation**: Empty SANs properly rejected with clear error messages
+
 ### Certificate Authority
 
 #### CA Struct
@@ -316,10 +437,12 @@ The main Certificate Authority structure for issuing certificates.
 - `NewCA(config *CAConfig) (*CA, error)` - Create new CA with optional persistence
 
 **Certificate Methods:**
-- `IssueServiceCertificate(req CertRequest) (*CertResponse, error)` - Issue certificate from request
+- `IssueServiceCertificate(req CertRequest) (*CertResponse, error)` - Issue certificate from request (V1)
+- `IssueServiceCertificateV2(req CertRequestV2) (*CertResponse, error)` - 🆕 Issue certificate with V2 API
 - `GetCACertificate() (string, error)` - Get CA certificate in PEM format
 - `ListCertificates() ([]CertificateInfo, error)` - List all issued certificates
-- `GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error)` - Legacy method
+- `GenerateCertificate(serviceName, serviceIP string, domains []string) (string, string, error)` - Legacy method (V1)
+- `GenerateCertificateV2(serviceName string, sans []string) (string, string, error)` - 🆕 Generate with V2 API
 
 **Information Methods:**
 - `GetIssuedCertificates() []*IssuedCert` - Get all issued certificates (legacy)
@@ -395,6 +518,29 @@ func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertR
 - `domains`: Additional domain names to include in the certificate
 
 Returns a `CertResponse` containing the PEM-encoded certificate and private key, or an error if the request fails or authentication is required but invalid.
+
+#### RequestCertificateV2 🆕
+Requests a certificate from the CA server using the simplified V2 API with automatic IP detection.
+
+```go
+func RequestCertificateV2(serviceName string, sans []string) (*CertResponse, error)
+```
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL (must be http:// or https://)
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+**Parameters:**
+- `serviceName`: Name of the service requesting the certificate
+- `sans`: Subject Alternative Names (mix of hostnames and IP addresses)
+
+**V2 Benefits:**
+- **Automatic IP Detection**: Automatically separates IP addresses from hostnames
+- **Smart CN Selection**: Uses first non-IP domain as CN, or first IP if no domains
+- **Simplified API**: Single SANs array instead of separate serviceIP + domains
+- **Server Compatibility**: CA server auto-detects V1 vs V2 requests
+
+Returns a `CertResponse` containing the PEM-encoded certificate and private key, or an error if the request fails.
 
 #### CreateSecureHTTPSServer
 Creates an HTTPS server with certificates from the CA. This is a convenience method that requests certificates from the CA server and returns a configured HTTP server ready to serve HTTPS traffic.
@@ -522,6 +668,9 @@ The package recognizes these environment variables for transport configuration:
 
 **Transport Functions Using These Variables:**
 - `UpdateTransport()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
+- `RequestCertificate()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V1 API)
+- `RequestCertificateV2()` - 🆕 Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V2 API)
+- `CreateSecureDualProtocolServer()` - 🆕 Requires `SGL_CA` for certificate requests (V2 API)
 - `UpdateTransportOnlyIf()` - Optional `SGL_CA`, optionally uses `SGL_CA_API_KEY` 
 - `RequestCertificate()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
 - `CreateSecureHTTPSServer()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
@@ -941,6 +1090,89 @@ go func() {
 5. **Graceful Shutdown**: Implement proper cleanup in production
 6. **Environment Variables**: Use environment-driven configuration for flexibility
 
+## 🔄 Migration Guide: V1 to V2
+
+### V1 → V2 API Migration
+
+The V2 API provides a cleaner interface with automatic IP detection. Here's how to migrate:
+
+#### Certificate Generation
+
+**V1 (Old):**
+```go
+req := ca.CertRequest{
+    ServiceName: "my-service",
+    ServiceIP:   "192.168.1.100",           // Separate IP field
+    Domains:     []string{"api.local"},      // Separate domains
+}
+resp, err := certificateAuthority.IssueServiceCertificate(req)
+```
+
+**V2 (New):**
+```go
+req := ca.CertRequestV2{
+    ServiceName: "my-service",
+    SANs:        []string{"api.local", "192.168.1.100"}, // Combined SANs
+}
+resp, err := certificateAuthority.IssueServiceCertificateV2(req) // V2 method
+```
+
+#### Client Certificate Requests
+
+**V1 (Old):**
+```go
+resp, err := ca.RequestCertificate("my-service", "192.168.1.100", []string{"api.local"})
+```
+
+**V2 (New):**
+```go
+resp, err := ca.RequestCertificateV2("my-service", []string{"api.local", "192.168.1.100"})
+```
+
+#### Dual Protocol Server
+
+**V1 (Old):**
+```go
+server, err := ca.CreateSecureDualProtocolServer(
+    "my-service",        // service name
+    "192.168.1.100",     // service IP
+    "8443",              // port
+    []string{"api.local"}, // domains
+    handler,             // handler
+)
+```
+
+**V2 (New):**
+```go
+server, err := ca.CreateSecureDualProtocolServer(
+    "my-service",                            // service name
+    "8443",                                  // port
+    []string{"api.local", "192.168.1.100"}, // SANs (combined)
+    handler,                                 // handler
+    logger,                                  // logger (new parameter)
+)
+```
+
+### Breaking Changes in V2.0.0
+
+1. **CN Selection**: No longer defaults to `serviceName.local`
+   - **Before**: Always `serviceName.local` regardless of domains
+   - **After**: First non-IP domain, or first IP if no domains
+
+2. **CreateSecureDualProtocolServer API**: Parameter order changed
+   - **Before**: `(serviceName, serviceIP, port, domains, handler)`
+   - **After**: `(serviceName, port, sans, handler, logger)`
+
+3. **Empty SANs**: Now properly validated
+   - **Before**: May have worked with undefined behavior
+   - **After**: Returns clear error for empty SANs
+
+### Compatibility
+
+- **V1 API**: Still supported, marked as deprecated
+- **CA Server**: Automatically detects V1 vs V2 requests
+- **Mixed Usage**: V1 and V2 can be used side-by-side during migration
+
 ## Semantic Versioning
 
 This package follows [Semantic Versioning](https://semver.org/):
@@ -950,6 +1182,22 @@ This package follows [Semantic Versioning](https://semver.org/):
 - **PATCH** (0.0.x): Bug fixes and backwards-compatible improvements
 
 ### Version History
+
+- **2.0.0**: 🎉 **V2 API Release** - Major API improvements and breaking changes
+  - **NEW**: V2 API with simplified certificate requests (`CertRequestV2`, `RequestCertificateV2()`, `IssueServiceCertificateV2()`)
+  - **NEW**: Automatic IP detection and intelligent CN selection
+  - **NEW**: Enhanced dual protocol server with simplified parameter structure
+  - **BREAKING**: CN selection no longer defaults to `serviceName.local`
+  - **BREAKING**: `CreateSecureDualProtocolServer()` API signature changed
+  - **BREAKING**: Empty SANs now properly validated with clear error messages
+  - **ENHANCED**: CA server auto-detects V1 vs V2 request formats
+  - **ENHANCED**: Comprehensive test coverage for V2 API scenarios
+  - **MIGRATION**: V1 API deprecated but still supported for backward compatibility
+
+- **1.8.0**: Added dual protocol transport server for handling HTTP and HTTPS on same port
+- **1.7.0**: Added Google Cloud emulator environment variable detection  
+- **1.6.0**: Added UpdateTransportMust function for panic-based transport updates
+- **1.5.0**: HTTPS-only server enforcement, API returns SecureHTTPSServer
 
 - **1.0.0**: Initial release
   - Complete Certificate Authority implementation
