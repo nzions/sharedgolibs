@@ -19,4 +19,4 @@ package ca
 //   - v2.0.5: RELEASE: Certificate details printing feature complete with comprehensive cert information
 
 // Version of the CA package
-const Version = "v2.0.5"
+const Version = "v2.0.6"
