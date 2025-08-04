@@ -42,9 +42,6 @@ var (
 
 	// ErrUnauthorized is returned when API key authentication fails
 	ErrUnauthorized = fmt.Errorf("unauthorized: invalid or missing API key")
-
-	// ErrEmulatorMode is returned when Google Cloud emulator environment variables are detected
-	ErrEmulatorMode = fmt.Errorf("emulator mode detected: transport update not allowed when Google Cloud emulators are active")
 )
 
 // validateCAURL validates that the CA URL is properly formatted
@@ -74,9 +71,9 @@ func validateCAURL(caURL string) error {
 }
 
 // checkForEmulatorEnvVars checks for Google Cloud emulator environment variables
-// and returns an error if any are found. This prevents transport updates when
-// running in emulator mode where CA certificates should not be modified.
-func checkForEmulatorEnvVars() error {
+// and logs a warning if any are found. This alerts when running in emulator mode
+// where CA certificates may behave differently than in production.
+func checkForEmulatorEnvVars() {
 	emulatorVars := []string{
 		"STORAGE_EMULATOR_HOST",
 		"PUBSUB_EMULATOR_HOST",
@@ -95,11 +92,9 @@ func checkForEmulatorEnvVars() error {
 
 	for _, envVar := range emulatorVars {
 		if value := util.MustGetEnv(envVar, ""); value != "" {
-			return fmt.Errorf("%w: %s=%s", ErrEmulatorMode, envVar, value)
+			slog.Warn("Emulator environment detected", "variable", envVar, "value", value, "warning", "CA certificate behavior may differ from production")
 		}
 	}
-
-	return nil
 }
 
 // getValidatedCAURL gets the CA URL from the SGL_CA environment variable and validates it.
@@ -131,13 +126,11 @@ func getValidatedCAURL() (string, error) {
 // This ensures that both direct usage of http.DefaultClient and libraries that
 // create HTTP clients based on http.DefaultTransport will trust the CA certificate.
 //
-// Returns an error if SGL_CA is not set, invalid, Google Cloud emulator variables
-// are detected, or if the CA certificate cannot be fetched or parsed.
+// Returns an error if SGL_CA is not set, invalid, or if the CA certificate cannot
+// be fetched or parsed. Google Cloud emulator variables are checked and warned about.
 func UpdateTransport() error {
-	// Check for Google Cloud emulator environment variables
-	if err := checkForEmulatorEnvVars(); err != nil {
-		return err
-	}
+	// Check for Google Cloud emulator environment variables (warns if found)
+	checkForEmulatorEnvVars()
 
 	caURL, err := getValidatedCAURL()
 	if err != nil {
@@ -155,7 +148,7 @@ func UpdateTransport() error {
 //   - SGL_CA (optional): CA server URL (must be http:// or https://) - if not set, function returns nil
 //   - SGL_CA_API_KEY (optional): API key for CA server authentication (only used if SGL_CA is set)
 //
-// Environment Variables Checked (will error if found and SGL_CA is set):
+// Environment Variables Checked (will warn if found and SGL_CA is set):
 //   - STORAGE_EMULATOR_HOST, PUBSUB_EMULATOR_HOST, FIRESTORE_EMULATOR_HOST, etc.
 //     (Google Cloud emulator environment variables)
 //
@@ -164,8 +157,8 @@ func UpdateTransport() error {
 //   - http.DefaultTransport: Replaced with the same custom transport
 //
 // Returns nil without error if SGL_CA is not set (no-op).
-// Returns an error if SGL_CA is set but invalid, Google Cloud emulator variables
-// are detected, or if the CA certificate cannot be fetched or parsed.
+// Returns an error if SGL_CA is set but invalid, or if the CA certificate cannot
+// be fetched or parsed. Google Cloud emulator variables are checked and warned about.
 func UpdateTransportOnlyIf() error {
 	caURL := util.MustGetEnv("SGL_CA", "")
 	if caURL == "" {
@@ -173,10 +166,8 @@ func UpdateTransportOnlyIf() error {
 		return nil
 	}
 
-	// Check for Google Cloud emulator environment variables
-	if err := checkForEmulatorEnvVars(); err != nil {
-		return err
-	}
+	// Check for Google Cloud emulator environment variables (warns if found)
+	checkForEmulatorEnvVars()
 
 	// Validate the URL since it's set
 	if err := validateCAURL(caURL); err != nil {
@@ -195,7 +186,7 @@ func UpdateTransportOnlyIf() error {
 //   - SGL_CA (required): CA server URL (must be http:// or https://)
 //   - SGL_CA_API_KEY (optional): API key for CA server authentication
 //
-// Environment Variables Checked (will panic if found):
+// Environment Variables Checked (will warn if found):
 //   - STORAGE_EMULATOR_HOST, PUBSUB_EMULATOR_HOST, FIRESTORE_EMULATOR_HOST, etc.
 //     (Google Cloud emulator environment variables)
 //
@@ -203,8 +194,8 @@ func UpdateTransportOnlyIf() error {
 //   - http.DefaultClient.Transport: Replaced with custom transport trusting the CA
 //   - http.DefaultTransport: Replaced with the same custom transport
 //
-// Panics if SGL_CA is not set, invalid, Google Cloud emulator variables
-// are detected, or if the CA certificate cannot be fetched or parsed.
+// Panics if SGL_CA is not set, invalid, or if the CA certificate cannot be
+// fetched or parsed. Google Cloud emulator variables are checked and warned about.
 func UpdateTransportMust() {
 	if err := UpdateTransport(); err != nil {
 		panic(fmt.Sprintf("failed to update transport: %v", err))

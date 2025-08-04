@@ -57,8 +57,8 @@ func TestEmulatorEnvVarDetection(t *testing.T) {
 				os.Setenv("STORAGE_EMULATOR_HOST", "localhost:9000")
 				os.Unsetenv("PUBSUB_EMULATOR_HOST")
 			},
-			expectError:   true,
-			expectedError: "emulator mode detected: transport update not allowed when Google Cloud emulators are active: STORAGE_EMULATOR_HOST=localhost:9000",
+			expectError:   true, // Will error because CA server doesn't exist, but will warn about emulator
+			expectedError: "",   // Don't check specific error message since it's a connection error
 		},
 		{
 			name: "PUBSUB_EMULATOR_HOST set",
@@ -67,8 +67,8 @@ func TestEmulatorEnvVarDetection(t *testing.T) {
 				os.Unsetenv("STORAGE_EMULATOR_HOST")
 				os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8085")
 			},
-			expectError:   true,
-			expectedError: "emulator mode detected: transport update not allowed when Google Cloud emulators are active: PUBSUB_EMULATOR_HOST=localhost:8085",
+			expectError:   true, // Will error because CA server doesn't exist, but will warn about emulator
+			expectedError: "",   // Don't check specific error message since it's a connection error
 		},
 		{
 			name: "FIRESTORE_EMULATOR_HOST set",
@@ -78,8 +78,8 @@ func TestEmulatorEnvVarDetection(t *testing.T) {
 				os.Unsetenv("PUBSUB_EMULATOR_HOST")
 				os.Setenv("FIRESTORE_EMULATOR_HOST", "localhost:8080")
 			},
-			expectError:   true,
-			expectedError: "emulator mode detected: transport update not allowed when Google Cloud emulators are active: FIRESTORE_EMULATOR_HOST=localhost:8080",
+			expectError:   true, // Will error because CA server doesn't exist, but will warn about emulator
+			expectedError: "",   // Don't check specific error message since it's a connection error
 		},
 		{
 			name: "FIREBASE_EMULATOR_HOST set",
@@ -90,8 +90,8 @@ func TestEmulatorEnvVarDetection(t *testing.T) {
 				os.Unsetenv("FIRESTORE_EMULATOR_HOST")
 				os.Setenv("FIREBASE_EMULATOR_HOST", "localhost:9099")
 			},
-			expectError:   true,
-			expectedError: "emulator mode detected: transport update not allowed when Google Cloud emulators are active: FIREBASE_EMULATOR_HOST=localhost:9099",
+			expectError:   true, // Will error because CA server doesn't exist, but will warn about emulator
+			expectedError: "",   // Don't check specific error message since it's a connection error
 		},
 		{
 			name: "Multiple emulator variables set (first one detected)",
@@ -100,8 +100,8 @@ func TestEmulatorEnvVarDetection(t *testing.T) {
 				os.Setenv("STORAGE_EMULATOR_HOST", "localhost:9000")
 				os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8085")
 			},
-			expectError:   true,
-			expectedError: "emulator mode detected: transport update not allowed when Google Cloud emulators are active: STORAGE_EMULATOR_HOST=localhost:9000",
+			expectError:   true, // Will error because CA server doesn't exist, but will warn about emulator
+			expectedError: "",   // Don't check specific error message since it's a connection error
 		},
 	}
 
@@ -118,16 +118,12 @@ func TestEmulatorEnvVarDetection(t *testing.T) {
 			}
 
 			if tt.expectError && err != nil {
-				if strings.Contains(err.Error(), "emulator mode detected") {
-					// This is the emulator detection error we're testing for
-					if tt.expectedError != "" && err.Error() != tt.expectedError {
-						t.Errorf("UpdateTransport() error = %v, expected %v", err.Error(), tt.expectedError)
-					}
-				} else if tt.expectedError != "" {
-					// We expected an emulator error but got a different error
-					t.Errorf("UpdateTransport() error = %v, expected emulator detection error", err)
+				// For emulator detection tests, we now expect connection errors since
+				// emulator detection only warns and doesn't prevent the CA update attempt
+				if tt.expectedError != "" && err.Error() != tt.expectedError {
+					t.Errorf("UpdateTransport() error = %v, expected %v", err.Error(), tt.expectedError)
 				}
-				// Otherwise it's probably a CA server connection error which is expected for the "no emulator" test
+				// If expectedError is empty, we just expect some error (likely connection error)
 			}
 		})
 	}
@@ -162,10 +158,10 @@ func TestEmulatorEnvVarDetectionOnlyIf(t *testing.T) {
 			expectError: true, // Will error because CA server doesn't exist, but NOT because of emulator detection
 		},
 		{
-			name:        "SGL_CA set, emulator var present - should error",
+			name:        "SGL_CA set, emulator var present - should warn but not error due to emulator detection",
 			sglCA:       "http://localhost:8090",
 			emulatorVar: "localhost:9000",
-			expectError: true,
+			expectError: true, // Will error because CA server doesn't exist, but will warn about emulator
 		},
 	}
 
@@ -191,9 +187,10 @@ func TestEmulatorEnvVarDetectionOnlyIf(t *testing.T) {
 			}
 
 			if tt.expectError && err != nil && tt.emulatorVar != "" {
-				// Only check for emulator detection if we set an emulator var
-				if !strings.Contains(err.Error(), "emulator mode detected") {
-					t.Errorf("UpdateTransportOnlyIf() error = %v, expected error to contain 'emulator mode detected'", err)
+				// With the new behavior, emulator vars only warn, so we expect connection errors
+				// not emulator detection errors
+				if strings.Contains(err.Error(), "emulator mode detected") {
+					t.Errorf("UpdateTransportOnlyIf() error = %v, should not error on emulator detection anymore (should only warn)", err)
 				}
 			}
 		})
@@ -214,14 +211,15 @@ func TestUpdateTransportMustPanicOnEmulator(t *testing.T) {
 	os.Setenv("SGL_CA", "http://localhost:8090")
 	os.Setenv("STORAGE_EMULATOR_HOST", "localhost:9000")
 
-	// Test that UpdateTransportMust panics
+	// Test that UpdateTransportMust panics (due to CA connection failure, not emulator detection)
 	defer func() {
 		if r := recover(); r == nil {
-			t.Errorf("UpdateTransportMust() did not panic, expected panic due to emulator detection")
+			t.Errorf("UpdateTransportMust() did not panic, expected panic due to CA connection failure")
 		} else {
 			panicMsg := r.(string)
-			if !strings.Contains(panicMsg, "emulator mode detected") {
-				t.Errorf("UpdateTransportMust() panic message = %v, expected to contain 'emulator mode detected'", panicMsg)
+			// Should panic due to connection failure, not emulator detection
+			if strings.Contains(panicMsg, "emulator mode detected") {
+				t.Errorf("UpdateTransportMust() panic message = %v, should not panic due to emulator detection (should only warn)", panicMsg)
 			}
 		}
 	}()
@@ -263,13 +261,10 @@ func TestCheckForEmulatorEnvVars(t *testing.T) {
 		os.Unsetenv(envVar)
 	}
 
-	// Test with no emulator vars set
-	err := checkForEmulatorEnvVars()
-	if err != nil {
-		t.Errorf("checkForEmulatorEnvVars() with no vars set should not error, got: %v", err)
-	}
+	// Test with no emulator vars set - should not panic or error
+	checkForEmulatorEnvVars()
 
-	// Test each emulator var individually
+	// Test each emulator var individually - should warn but not error
 	for _, envVar := range emulatorVars {
 		t.Run("Check_"+envVar, func(t *testing.T) {
 			// Clear all vars
@@ -280,12 +275,8 @@ func TestCheckForEmulatorEnvVars(t *testing.T) {
 			// Set the specific var
 			os.Setenv(envVar, "localhost:8080")
 
-			err := checkForEmulatorEnvVars()
-			if err == nil {
-				t.Errorf("checkForEmulatorEnvVars() with %s set should error", envVar)
-			} else if !strings.Contains(err.Error(), envVar) {
-				t.Errorf("checkForEmulatorEnvVars() error should mention %s, got: %v", envVar, err)
-			}
+			// Function should complete without panic - warnings are logged but not testable directly
+			checkForEmulatorEnvVars()
 		})
 	}
 }
