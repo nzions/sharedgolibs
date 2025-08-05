@@ -2,11 +2,15 @@
 
 package middleware
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/nzions/sharedgolibs/pkg/logi"
+)
 
 // LogAndCORS combines logging and CORS middleware in a single handler.
 // Convenience function for the common pattern of applying both middlewares.
-func LogAndCORS(logger interface{}) func(http.Handler) http.Handler {
+func LogAndCORS(logger logi.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return WithLogging(logger)(WithCORS(next))
 	}
