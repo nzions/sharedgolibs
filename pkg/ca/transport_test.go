@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1035,4 +1036,150 @@ func TestUpdateTransportMust(t *testing.T) {
 		}()
 		UpdateTransportMust()
 	})
+}
+
+func TestCreateHTTPClientWithSystemAndCustomCAs(t *testing.T) {
+	// Save original environment variables
+	originalCA := os.Getenv("SGL_CA")
+	originalAPIKey := os.Getenv("SGL_CA_API_KEY")
+	defer func() {
+		os.Setenv("SGL_CA", originalCA)
+		os.Setenv("SGL_CA_API_KEY", originalAPIKey)
+	}()
+
+	// Create a test CA server
+	server, err := NewServer(&ServerConfig{
+		Port:      "8099",
+		CAConfig:  DefaultCAConfig(),
+		EnableGUI: false,
+		GUIAPIKey: "",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create server: %v", err)
+	}
+
+	// Start test server
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ca" {
+			server.handleCARequest(w, r)
+		} else {
+			http.NotFound(w, r)
+		}
+	}))
+	defer testServer.Close()
+
+	tests := []struct {
+		name             string
+		includeSystemCAs bool
+		includeCustomCA  bool
+		caURL            string
+		wantError        bool
+		description      string
+	}{
+		{
+			name:             "System CAs only",
+			includeSystemCAs: true,
+			includeCustomCA:  false,
+			caURL:            "",
+			wantError:        false,
+			description:      "Should create client with system certificate pool",
+		},
+		{
+			name:             "Custom CA only with valid server",
+			includeSystemCAs: false,
+			includeCustomCA:  true,
+			caURL:            testServer.URL,
+			wantError:        false,
+			description:      "Should create client with custom CA from server",
+		},
+		{
+			name:             "Both system and custom CAs",
+			includeSystemCAs: true,
+			includeCustomCA:  true,
+			caURL:            testServer.URL,
+			wantError:        false,
+			description:      "Should create client with both system and custom CAs",
+		},
+		{
+			name:             "Custom CA with no SGL_CA configured",
+			includeSystemCAs: true,
+			includeCustomCA:  true,
+			caURL:            "",
+			wantError:        false,
+			description:      "Should warn and use system CAs only",
+		},
+		{
+			name:             "Custom CA with invalid URL",
+			includeSystemCAs: false,
+			includeCustomCA:  true,
+			caURL:            "invalid-url",
+			wantError:        true,
+			description:      "Should fail with invalid URL error",
+		},
+		{
+			name:             "Neither system nor custom",
+			includeSystemCAs: false,
+			includeCustomCA:  false,
+			caURL:            "",
+			wantError:        false,
+			description:      "Should create client with empty cert pool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up environment
+			if tt.caURL != "" {
+				os.Setenv("SGL_CA", tt.caURL)
+			} else {
+				os.Unsetenv("SGL_CA")
+			}
+
+			// Create client
+			client, err := CreateHTTPClientWithSystemAndCustomCAs(tt.includeSystemCAs, tt.includeCustomCA)
+
+			// Check error expectation
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			// Verify client was created
+			if client == nil {
+				t.Error("Expected non-nil client")
+				return
+			}
+
+			// Verify transport configuration
+			transport, ok := client.Transport.(*http.Transport)
+			if !ok {
+				t.Error("Expected *http.Transport")
+				return
+			}
+
+			if transport.TLSClientConfig == nil {
+				t.Error("Expected TLS config to be set")
+				return
+			}
+
+			// Verify minimum TLS version
+			if transport.TLSClientConfig.MinVersion != tls.VersionTLS12 {
+				t.Errorf("Expected MinVersion TLS 1.2, got %d", transport.TLSClientConfig.MinVersion)
+			}
+
+			// Verify certificate pool configuration
+			if tt.includeSystemCAs || tt.includeCustomCA {
+				if transport.TLSClientConfig.RootCAs == nil {
+					t.Error("Expected RootCAs to be set when including CAs")
+				}
+			}
+		})
+	}
 }

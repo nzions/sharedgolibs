@@ -644,3 +644,125 @@ func createCertRequestV2(url string, certReq interface{}) (*http.Request, error)
 	req.Header.Set("Content-Type", "application/json")
 	return req, nil
 }
+
+// CreateHTTPClientWithSystemAndCustomCAs creates an HTTP client that trusts both
+// system certificate authorities and optionally custom CAs from the CA server.
+// This is useful for applications that need to connect to both public APIs (like Stripe)
+// and internal services with custom certificates.
+//
+// Environment Variables Used:
+//   - SGL_CA (optional): CA server URL to fetch additional CA certificates from
+//   - SGL_CA_API_KEY (optional): API key for CA server authentication
+//
+// Parameters:
+//   - includeSystemCAs: Whether to include the system's default certificate authorities
+//   - includeCustomCA: Whether to fetch and include CA certificates from SGL_CA server
+//
+// Returns an *http.Client configured with the specified certificate authorities.
+// If both includeSystemCAs and includeCustomCA are false, returns a client with an empty cert pool.
+// If SGL_CA is not configured but includeCustomCA is true, logs a warning and continues with system CAs only.
+//
+// Example:
+//
+//	// Client that works with both Stripe API and internal services
+//	client, err := ca.CreateHTTPClientWithSystemAndCustomCAs(true, true)
+//	if err != nil { return err }
+//
+//	// Use for Stripe API calls
+//	resp, err := client.Get("https://api.stripe.com/v1/account")
+func CreateHTTPClientWithSystemAndCustomCAs(includeSystemCAs, includeCustomCA bool) (*http.Client, error) {
+	var certPool *x509.CertPool
+
+	// Start with system certificate pool if requested
+	if includeSystemCAs {
+		var err error
+		certPool, err = x509.SystemCertPool()
+		if err != nil {
+			slog.Warn("Failed to load system certificate pool, starting with empty pool", "error", err)
+			certPool = x509.NewCertPool()
+		}
+	} else {
+		certPool = x509.NewCertPool()
+	}
+
+	// Add custom CA certificates if requested
+	if includeCustomCA {
+		caURL := util.MustGetEnv("SGL_CA", "")
+		if caURL == "" {
+			slog.Warn("Custom CA requested but SGL_CA not configured, using system CAs only")
+		} else {
+			if err := validateCAURL(caURL); err != nil {
+				return nil, fmt.Errorf("invalid CA URL: %w", err)
+			}
+
+			// Fetch and add the custom CA certificate
+			if err := addCustomCAToPool(certPool, caURL); err != nil {
+				return nil, fmt.Errorf("failed to add custom CA: %w", err)
+			}
+		}
+	}
+
+	// Create HTTP client with the configured certificate pool
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs:    certPool,
+			MinVersion: tls.VersionTLS12, // Enforce minimum TLS version
+		},
+	}
+
+	return &http.Client{
+		Transport: transport,
+	}, nil
+}
+
+// addCustomCAToPool fetches a CA certificate from the specified URL and adds it to the cert pool
+func addCustomCAToPool(certPool *x509.CertPool, caURL string) error {
+	// Create request to get CA certificate
+	req, err := http.NewRequest("GET", caURL+"/ca", nil)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrCARequest, err)
+	}
+
+	// Add API key if configured
+	apiKey := util.MustGetEnv("SGL_CA_API_KEY", "")
+	if apiKey != "" {
+		req.Header.Set("X-API-Key", apiKey)
+	}
+
+	// Make the request using a basic client (to avoid circular dependency)
+	basicClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: false,
+			},
+		},
+	}
+
+	resp, err := basicClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrCARequest, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return ErrUnauthorized
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%w: HTTP %d", ErrCARequest, resp.StatusCode)
+	}
+
+	// Read the CA certificate
+	caCertPEM, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrCAResponse, err)
+	}
+
+	// Parse and add the certificate to the pool
+	if !certPool.AppendCertsFromPEM(caCertPEM) {
+		return fmt.Errorf("%w: failed to parse PEM data", ErrCertParse)
+	}
+
+	slog.Info("Successfully added custom CA certificate to pool", "url", caURL)
+	return nil
+}

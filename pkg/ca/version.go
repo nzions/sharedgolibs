@@ -17,6 +17,7 @@ package ca
 //   - v2.0.3: CRITICAL FIX: Fixed TLS handshake in dual protocol server by preserving buffered data
 //   - v2.0.4: ENHANCEMENT: Added certificate details printing to CreateSecureDualProtocolServer for debugging
 //   - v2.0.5: RELEASE: Certificate details printing feature complete with comprehensive cert information
+//   - v2.0.6: ENHANCEMENT: Added CreateHTTPClientWithSystemAndCustomCAs() for TLS certificate handling
 
 // Version of the CA package
 const Version = "v2.0.6"
