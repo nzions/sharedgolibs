@@ -348,22 +348,15 @@ func TestNewSGLMux(t *testing.T) {
 		t.Errorf("New mux with no options should have 0 routes, got %d", len(routes))
 	}
 
-	// Test with built-in services
-	muxWithServices := NewSGLMux(OptHealth(), OptServices())
-	routesWithServices := muxWithServices.GetRoutes()
-	if len(routesWithServices) != 2 {
-		t.Errorf("New mux with health and services should have 2 routes (/health, /services), got %d", len(routesWithServices))
+	// Test with health endpoint
+	muxWithHealth := NewSGLMux(OptHealth())
+	routesWithHealth := muxWithHealth.GetRoutes()
+	if len(routesWithHealth) != 1 {
+		t.Errorf("New mux with health should have 1 route (/health), got %d", len(routesWithHealth))
 	}
 
-	expectedRoutes := map[string]bool{
-		"GET /health":   true,
-		"GET /services": true,
-	}
-
-	for _, route := range routesWithServices {
-		if !expectedRoutes[route.Pattern] {
-			t.Errorf("Unexpected route: %s", route.Pattern)
-		}
+	if routesWithHealth[0].Pattern != "GET /health" {
+		t.Errorf("Expected health route pattern 'GET /health', got %s", routesWithHealth[0].Pattern)
 	}
 }
 
@@ -494,7 +487,7 @@ func TestSGLMux_GetRoutes(t *testing.T) {
 }
 
 func TestSGLMux_HealthEndpoint(t *testing.T) {
-	mux := NewSGLMux(OptHealth(), OptServices())
+	mux := NewSGLMux(OptHealth())
 
 	// Test the /health endpoint
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -516,35 +509,38 @@ func TestSGLMux_HealthEndpoint(t *testing.T) {
 		t.Errorf("Failed to parse JSON response: %v", err)
 	}
 
-	// Check that status and routes count are present
+	// Check that status is present
 	status, ok := response["status"].(string)
 	if !ok || status != "ok" {
 		t.Error("Expected status 'ok' in health response")
 	}
 
-	routesCount, ok := response["routes"].(float64)
+	// Check that routes array is present
+	routes, ok := response["routes"].([]interface{})
 	if !ok {
-		t.Error("Expected routes count in health response")
+		t.Error("Expected routes array in health response")
 	}
 
-	// Should have 2 routes: /health and /services
-	if int(routesCount) != 2 {
-		t.Errorf("Expected 2 routes in health response, got %d", int(routesCount))
+	// Should have 1 route: /health
+	if len(routes) != 1 {
+		t.Errorf("Expected 1 route in health response, got %d", len(routes))
 	}
 }
 
-func TestSGLMux_ServicesEndpoint(t *testing.T) {
-	mux := NewSGLMux(OptHealth(), OptServices())
+func TestSGLMux_HealthEndpointWithRoutes(t *testing.T) {
+	mux := NewSGLMux(OptHealth())
 
 	// Add some test routes
 	mux.HandleFunc("/api/users", func(w http.ResponseWriter, r *http.Request) {})
-	mux.HandleFunc("POST /api/users", func(w http.ResponseWriter, r *http.Request) {}) // Test the /services endpoint
-	req := httptest.NewRequest("GET", "/services", nil)
+	mux.HandleFunc("POST /api/users", func(w http.ResponseWriter, r *http.Request) {})
+
+	// Test the /health endpoint now includes routes
+	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200 for /services, got %d", w.Code)
+		t.Errorf("Expected status 200 for /health, got %d", w.Code)
 	}
 
 	contentType := w.Header().Get("Content-Type")
@@ -552,30 +548,70 @@ func TestSGLMux_ServicesEndpoint(t *testing.T) {
 		t.Errorf("Expected Content-Type application/json, got %s", contentType)
 	}
 
-	// Parse the JSON response
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-		t.Errorf("Failed to parse JSON response: %v", err)
+		t.Fatalf("Failed to unmarshal health response: %v", err)
 	}
 
-	// Check that routes are present
-	routes, ok := response["routes"].([]interface{})
+	// Check status
+	if response["status"] != "ok" {
+		t.Errorf("Expected status 'ok', got %v", response["status"])
+	}
+
+	// Check routes are included
+	routes, ok := response["routes"].([]any)
 	if !ok {
-		t.Error("Expected routes field in JSON response")
+		t.Errorf("Expected routes array in health response")
 	}
 
-	count, ok := response["count"].(float64)
+	if len(routes) != 3 { // /health + 2 user routes
+		t.Errorf("Expected 3 routes in health response, got %d", len(routes))
+	}
+}
+
+func TestSGLMux_OptHealthWithCustomData(t *testing.T) {
+	customData := map[string]any{
+		"version":    "1.0.0",
+		"build":      "abc123",
+		"deployment": "production",
+	}
+
+	mux := NewSGLMux(OptHealth(customData))
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for /health, got %d", w.Code)
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to unmarshal health response: %v", err)
+	}
+
+	// Check status
+	if response["status"] != "ok" {
+		t.Errorf("Expected status 'ok', got %v", response["status"])
+	}
+
+	// Check custom data is included
+	data, ok := response["data"].(map[string]any)
 	if !ok {
-		t.Error("Expected count field in JSON response")
+		t.Errorf("Expected data field in health response")
 	}
 
-	if int(count) != len(routes) {
-		t.Errorf("Count mismatch: expected %d, got %d", len(routes), int(count))
+	if data["version"] != "1.0.0" {
+		t.Errorf("Expected version '1.0.0', got %v", data["version"])
 	}
 
-	// Should have 4 routes: /health, /services, /api/users, POST /api/users
-	if len(routes) != 4 {
-		t.Errorf("Expected 4 routes in services response, got %d", len(routes))
+	if data["build"] != "abc123" {
+		t.Errorf("Expected build 'abc123', got %v", data["build"])
+	}
+
+	if data["deployment"] != "production" {
+		t.Errorf("Expected deployment 'production', got %v", data["deployment"])
 	}
 }
 
@@ -636,28 +672,5 @@ func TestSGLMux_OptHealth(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200 for /health, got %d", w.Code)
-	}
-}
-
-func TestSGLMux_OptServices(t *testing.T) {
-	// Test services endpoint only
-	mux := NewSGLMux(OptServices())
-	routes := mux.GetRoutes()
-
-	if len(routes) != 1 {
-		t.Errorf("Expected 1 route with OptServices, got %d", len(routes))
-	}
-
-	if routes[0].Pattern != "GET /services" {
-		t.Errorf("Expected 'GET /services' route, got %s", routes[0].Pattern)
-	}
-
-	// Test that services endpoint works
-	req := httptest.NewRequest("GET", "/services", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200 for /services, got %d", w.Code)
 	}
 }

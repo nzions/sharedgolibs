@@ -12,8 +12,9 @@ import (
 // It enforces Go 1.22+ mux patterns by letting ServeMux validate them.
 type SGLMux struct {
 	*http.ServeMux
-	routes []Route
-	mu     sync.RWMutex
+	routes     []Route
+	mu         sync.RWMutex
+	healthData any
 }
 
 // Route represents a registered route.
@@ -24,17 +25,13 @@ type Route struct {
 // SGLMuxOption configures SGLMux.
 type SGLMuxOption func(*SGLMux)
 
-// OptHealth adds /health endpoint.
-func OptHealth() SGLMuxOption {
+// OptHealth adds /health endpoint with optional additional data.
+func OptHealth(data ...any) SGLMuxOption {
 	return func(m *SGLMux) {
+		if len(data) > 0 {
+			m.healthData = data[0]
+		}
 		m.HandleFunc("GET /health", m.healthHandler)
-	}
-}
-
-// OptServices adds /services endpoint.
-func OptServices() SGLMuxOption {
-	return func(m *SGLMux) {
-		m.HandleFunc("GET /services", m.servicesHandler)
 	}
 }
 
@@ -83,22 +80,20 @@ func (m *SGLMux) GetRoutes() []Route {
 	return routes
 }
 
-// healthHandler handles the built-in /health endpoint.
+// healthHandler handles GET /health requests with routes and optional custom data.
 func (m *SGLMux) healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+
+	// Build response with routes and optional health data
+	response := map[string]any{
 		"status": "ok",
-		"routes": len(m.GetRoutes()),
-	})
-}
+		"routes": m.GetRoutes(),
+	}
 
-// servicesHandler handles the built-in /services endpoint.
-func (m *SGLMux) servicesHandler(w http.ResponseWriter, r *http.Request) {
-	routes := m.GetRoutes()
+	// Add custom health data if provided
+	if m.healthData != nil {
+		response["data"] = m.healthData
+	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"routes": routes,
-		"count":  len(routes),
-	})
+	json.NewEncoder(w).Encode(response)
 }
