@@ -4,9 +4,6 @@ package middleware
 
 import "net/http"
 
-// Version is the current version of the middleware package
-const Version = "0.4.0"
-
 // WithCORS adds CORS headers to HTTP responses.
 // Allows cross-origin requests from any origin.
 func WithCORS(next http.Handler) http.Handler {
