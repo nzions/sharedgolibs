@@ -17,6 +17,7 @@ package ca
 //   - v2.0.3: CRITICAL FIX: Fixed TLS handshake in dual protocol server by preserving buffered data
 //   - v2.0.4: ENHANCEMENT: Added certificate details printing to CreateSecureDualProtocolServer for debugging
 //   - v2.0.5: RELEASE: Certificate details printing feature complete with comprehensive cert information
+//   - v2.1.0: FEATURE: Added transportv2.go with V2 transport functions, deprecated old methods
 
 // Version of the CA package
-const Version = "v2.0.6"
+const Version = "v2.1.0"
