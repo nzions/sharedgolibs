@@ -4,8 +4,9 @@
 
 The CA package provides comprehensive Certificate Authority functionality for development and testing environments, enabling dynamic certificate issuance, persistent storage, thread-safe operations, gRPC support, and HTTP transport integration.
 
-## Version: v2.0.0
+## Version: v2.1.0
 
+🎉 **NEW in v2.1.0**: Transport V2 API with simplified HTTPS server creation and SAN-based certificates!
 🎉 **NEW in v2.0.0**: Simplified V2 API with automatic IP detection and enhanced CN selection!
 
 ## Features
@@ -28,11 +29,13 @@ The CA package provides comprehensive Certificate Authority functionality for de
 - **gRPC Credentials**: `CreateGRPCCredentials()` for client connections
 - **Dial Options**: `UpdateGRPCDialOptions()` for zero-configuration gRPC clients
 
-### 🔧 HTTP Transport Integration (transport.go)
+### 🔧 HTTP Transport Integration (transport.go, transportv2.go)
+- **V2 Transport API**: Modern `transportv2.go` with simplified SAN-based certificate requests
 - **Zero-code-change**: Modify global HTTP transport without changing application code  
 - **Automatic CA Trust**: Configure HTTP clients to trust CA-issued certificates
 - **Environment-driven**: Configuration through `SGL_CA` and `SGL_CA_API_KEY` variables
-- **HTTPS Server Creation**: `CreateSecureHTTPSServer()` with automatic certificates
+- **HTTPS Server Creation**: Both legacy and V2 APIs for automatic certificate provisioning
+- **Legacy Support**: Deprecated V1 methods remain functional for backward compatibility
 
 ### 💾 Storage Architecture (storage.go)
 - **Storage Abstraction**: Pluggable storage backends via `CertStorage` interface
@@ -307,12 +310,11 @@ func main() {
         w.Write([]byte("Hello from secure server!"))
     })
     
-    // Create HTTPS server with automatic certificates
-    server, err := ca.CreateSecureHTTPSServer(
+    // Create HTTPS server with automatic certificates (V2 API)
+    server, err := ca.CreateSecureHTTPSServerV2(
         "my-web-service",      // Service name
-        "127.0.0.1",          // Service IP
         "8443",               // Port
-        []string{"localhost", "my-service.local"}, // Domains
+        []string{"localhost", "my-service.local", "127.0.0.1"}, // SANs (hostnames + IPs)
         mux,                  // Handler
     )
     if err != nil {
@@ -501,8 +503,10 @@ func UpdateTransportOnlyIf() error
 
 Returns nil without error if `SGL_CA` is not set (no-op). Returns an error if `SGL_CA` is set but invalid, or if the CA certificate cannot be fetched or parsed.
 
-#### RequestCertificate
+#### RequestCertificate (Legacy)
 Requests a certificate from the CA server for a given service. The certificate includes the service name, IP address, and additional domain names.
+
+**⚠️ DEPRECATED: Use `RequestCertificateV2` for new code.**
 
 ```go
 func RequestCertificate(serviceName, serviceIP string, domains []string) (*CertResponse, error)
@@ -542,11 +546,13 @@ func RequestCertificateV2(serviceName string, sans []string) (*CertResponse, err
 
 Returns a `CertResponse` containing the PEM-encoded certificate and private key, or an error if the request fails.
 
-#### CreateSecureHTTPSServer
+#### CreateSecureHTTPSServer (Legacy)
 Creates an HTTPS server with certificates from the CA. This is a convenience method that requests certificates from the CA server and returns a configured HTTP server ready to serve HTTPS traffic.
 
+**⚠️ DEPRECATED: Use `CreateSecureHTTPSServerV2` for new code.**
+
 ```go
-func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*http.Server, error)
+func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*SecureHTTPSServer, error)
 ```
 
 **Environment Variables Used:**
@@ -560,7 +566,43 @@ func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []stri
 - `domains`: Additional domain names to include in the certificate
 - `handler`: HTTP handler for the server
 
-Returns a configured `*http.Server` with TLS certificates, ready to call `ListenAndServeTLS()`.
+Returns a configured `*SecureHTTPSServer` with TLS certificates, ready to call `ListenAndServeTLS()`.
+
+#### CreateSecureHTTPSServerV2 🆕 (Recommended)
+Creates an HTTPS server with certificates from the CA using the simplified V2 API with SAN-based certificate requests.
+
+```go
+func CreateSecureHTTPSServerV2(serviceName, port string, sans []string, handler http.Handler) (*SecureHTTPSServer, error)
+```
+
+**Environment Variables Used:**
+- `SGL_CA` (required): CA server URL for certificate requests
+- `SGL_CA_API_KEY` (optional): API key for CA server authentication
+
+**Parameters:**
+- `serviceName`: Name of the service for certificate generation
+- `port`: Port number the server will listen on (without ":")
+- `sans`: Subject Alternative Names (hostnames and IP addresses)
+- `handler`: HTTP handler for the server
+
+**V2 Benefits:**
+- **Simplified API**: No need to separate IPs from hostnames
+- **Automatic Detection**: CA server automatically detects V2 format
+- **Cleaner Code**: Single SANs array replaces serviceIP + domains
+- **Future-Proof**: Built on the modern V2 certificate request API
+
+**Migration Example:**
+```go
+// Old V1 approach
+server, err := CreateSecureHTTPSServer("my-service", "192.168.1.100", "8443", 
+    []string{"api.example.com", "localhost"}, handler)
+
+// New V2 approach  
+server, err := CreateSecureHTTPSServerV2("my-service", "8443",
+    []string{"api.example.com", "localhost", "192.168.1.100"}, handler)
+```
+
+Returns a configured `*SecureHTTPSServer` with TLS certificates, ready to call `ListenAndServeTLS()`.
 
 #### CreateSecureGRPCServer
 Creates a gRPC server with certificates from the CA. This is a convenience method that requests certificates from the CA server and returns a configured gRPC server with TLS transport credentials.
@@ -630,10 +672,14 @@ Create a gRPC server with automatic certificates:
 func CreateSecureGRPCServer(serviceName, serviceIP string, domains []string) (*grpc.Server, error)
 ```
 
-#### CreateSecureHTTPSServer
+#### CreateSecureHTTPSServer / CreateSecureHTTPSServerV2
 Create an HTTPS server with automatic certificates:
 ```go
-func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*http.Server, error)
+// Legacy V1 API (deprecated)
+func CreateSecureHTTPSServer(serviceName, serviceIP, port string, domains []string, handler http.Handler) (*SecureHTTPSServer, error)
+
+// Recommended V2 API
+func CreateSecureHTTPSServerV2(serviceName, port string, sans []string, handler http.Handler) (*SecureHTTPSServer, error)
 ```
 
 ### Storage Backends
@@ -668,12 +714,12 @@ The package recognizes these environment variables for transport configuration:
 
 **Transport Functions Using These Variables:**
 - `UpdateTransport()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
-- `RequestCertificate()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V1 API)
-- `RequestCertificateV2()` - 🆕 Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V2 API)
-- `CreateSecureDualProtocolServer()` - 🆕 Requires `SGL_CA` for certificate requests (V2 API)
 - `UpdateTransportOnlyIf()` - Optional `SGL_CA`, optionally uses `SGL_CA_API_KEY` 
-- `RequestCertificate()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
-- `CreateSecureHTTPSServer()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
+- `RequestCertificate()` - 🚫 **DEPRECATED** - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V1 API)
+- `RequestCertificateV2()` - 🆕 **RECOMMENDED** - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V2 API)
+- `CreateSecureHTTPSServer()` - 🚫 **DEPRECATED** - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V1 API)
+- `CreateSecureHTTPSServerV2()` - 🆕 **RECOMMENDED** - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY` (V2 API)
+- `CreateSecureDualProtocolServer()` - 🆕 Requires `SGL_CA` for certificate requests (V2 API)
 - `CreateSecureGRPCServer()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
 - `CreateGRPCCredentials()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`
 - `UpdateGRPCDialOptions()` - Requires `SGL_CA`, optionally uses `SGL_CA_API_KEY`

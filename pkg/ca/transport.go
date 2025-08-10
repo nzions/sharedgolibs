@@ -286,8 +286,6 @@ func updateTransportWithCA(caURL string) error {
 	return nil
 }
 
-
-
 // RequestCertificate requests a certificate from the CA server for the given service.
 // The certificate includes the service name, IP address, and additional domain names.
 //
@@ -566,5 +564,3 @@ func createCertRequest(url string, certReq *CertRequest) (*http.Request, error) 
 	req.Header.Set("Content-Type", "application/json")
 	return req, nil
 }
-
-
