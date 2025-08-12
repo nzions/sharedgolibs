@@ -15,7 +15,7 @@ import (
 	"github.com/nzions/sharedgolibs/pkg/util"
 )
 
-const version = "1.0.0"
+const version = "1.0.1"
 
 // ContainerInfo represents comprehensive information about a Docker container
 type ContainerInfo struct {
@@ -135,6 +135,8 @@ func showHelp() {
 	fmt.Println("    * Output from --version (if supported)")
 	fmt.Println("    * Output from --keys (if supported)")
 	fmt.Println("    * Whether curl or wget are available")
+	fmt.Println()
+	fmt.Println("Source: https://github.com/nzions/sharedgolibs")
 }
 
 func showVersion() {
@@ -226,15 +228,26 @@ func getContainerInfo(dockerClient *client.Client, c container.Summary) (Contain
 		}
 	}
 
-	// Get port information
+	// Get port information using maps to avoid duplicates
+	internalPortsMap := make(map[string]bool)
+	externalPortsMap := make(map[string]bool)
+
 	for _, port := range c.Ports {
 		internalPort := fmt.Sprintf("%d/%s", port.PrivatePort, port.Type)
-		info.InternalPorts = append(info.InternalPorts, internalPort)
+		internalPortsMap[internalPort] = true
 
 		if port.PublicPort != 0 {
 			externalPort := fmt.Sprintf("%d:%d", port.PublicPort, port.PrivatePort)
-			info.ExternalPorts = append(info.ExternalPorts, externalPort)
+			externalPortsMap[externalPort] = true
 		}
+	}
+
+	// Convert maps to slices
+	for port := range internalPortsMap {
+		info.InternalPorts = append(info.InternalPorts, port)
+	}
+	for port := range externalPortsMap {
+		info.ExternalPorts = append(info.ExternalPorts, port)
 	}
 
 	// Execute commands in container to get version, keys, and check for curl/wget

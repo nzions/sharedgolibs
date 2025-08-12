@@ -1,4 +1,4 @@
-.PHONY: regen-autoport build-tools build-binarycleaner build-servicemanager build-envinfo clean-bins help
+.PHONY: regen-autoport build-tools build-binarycleaner build-servicemanager build-envinfo install-envinfo clean-bins help
 
 build-tools: build-servicemanager build-binarycleaner build-envinfo ## Build all CLI tools
 
@@ -19,6 +19,12 @@ build-envinfo: ## Build the envinfo CLI tool
 	@mkdir -p bin
 	@go build -o bin/envinfo ./cmd/envinfo/
 	@echo "✓ envinfo built successfully"
+
+install-envinfo: build-envinfo ## Install envinfo binary to ~/go/bin
+	@echo "Installing envinfo to ~/go/bin..."
+	@mkdir -p ~/go/bin
+	@cp bin/envinfo ~/go/bin/envinfo
+	@echo "✓ envinfo installed successfully to ~/go/bin/envinfo"
 
 clean-bins: ## Remove all binary files from bin/ directory
 	@echo "Cleaning bin/ directory..."
