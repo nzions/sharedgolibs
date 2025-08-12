@@ -209,6 +209,28 @@ go build -o bin/servicemanager ./cmd/servicemanager/
 ./bin/servicemanager -port=8080 -json   # Check specific port as JSON
 ```
 
+### `envinfo` - **NEW ENVIRONMENT INFO CLI**
+Environment and Docker container information tool:
+
+```bash
+go build -o bin/envinfo ./cmd/envinfo/
+
+# Basic usage
+./bin/envinfo                          # Show environment and container info
+./bin/envinfo -json                    # JSON output
+./bin/envinfo -version                 # Show version information
+
+# Features
+# - Current envmgr environment
+# - Running Docker containers with:
+#   * Container name and internal IP
+#   * Internal and external ports
+#   * DNS aliases assigned to container
+#   * Output from <entrypoint> --version
+#   * Output from <entrypoint> --keys
+#   * Whether curl or wget are available
+```
+
 ## Usage
 
 ```go
