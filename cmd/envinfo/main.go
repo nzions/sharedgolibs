@@ -444,7 +444,7 @@ func printVersionsTable(containers []ContainerInfo) {
 		if len(container.Name) > maxNameWidth {
 			maxNameWidth = len(container.Name)
 		}
-		
+
 		healthy := "Yes"
 		if container.Status != "Up" && !strings.HasPrefix(container.Status, "Up ") {
 			healthy = "No"
