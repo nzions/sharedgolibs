@@ -1,0 +1,16 @@
+# Test waitlib in scratch container  
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+COPY . .
+
+# Build a static binary for scratch container
+RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o waitlib-scratch ./cmd/waitlib/
+
+# Scratch runtime stage (minimal container)
+FROM scratch
+
+COPY --from=builder /app/waitlib-scratch /waitlib
+
+# Set the command to run waitlib
+CMD ["/waitlib"]

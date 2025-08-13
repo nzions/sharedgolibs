@@ -1,6 +1,6 @@
-.PHONY: regen-autoport build-tools build-binarycleaner build-servicemanager build-envinfo install-envinfo clean-bins help
+.PHONY: regen-autoport build-tools build-binarycleaner build-servicemanager build-envinfo build-waitlib install-envinfo clean-bins help
 
-build-tools: build-servicemanager build-binarycleaner build-envinfo ## Build all CLI tools
+build-tools: build-servicemanager build-binarycleaner build-envinfo build-waitlib ## Build all CLI tools
 
 build-servicemanager: ## Build the servicemanager CLI tool
 	@echo "Building servicemanager..."
@@ -19,6 +19,12 @@ build-envinfo: ## Build the envinfo CLI tool
 	@mkdir -p bin
 	@go build -o bin/envinfo ./cmd/envinfo/
 	@echo "✓ envinfo built successfully"
+
+build-waitlib: ## Build the waitlib CLI tool
+	@echo "Building waitlib..."
+	@mkdir -p bin
+	@go build -o bin/waitlib ./cmd/waitlib/
+	@echo "✓ waitlib built successfully"
 
 install-envinfo: build-envinfo ## Install envinfo binary to ~/go/bin
 	@echo "Installing envinfo to ~/go/bin..."

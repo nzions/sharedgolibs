@@ -88,6 +88,18 @@ Auto-generated port configurations from Docker Compose for consistent service di
 - Environment variable extraction
 - Pure Go with no external dependencies
 
+### ⏳ Wait Library (v0.1.0)
+Simple wait utility for containers and applications with version and uptime display.
+
+**Key Features:**
+- **Container-Friendly**: Updates process title for easy identification in `docker ps`
+- **Version Display**: Shows both application and library versions
+- **Uptime Tracking**: Human-readable uptime formatting (e.g., "2d4h15m")
+- **Command-Line Interface**: Built-in `--help` and `--version` flags
+- **Library Integration**: Easy integration with `waitlib.Run(version)`
+- **Process Title Updates**: Appears as `wait <version> <uptime>` in process lists
+- **Zero Dependencies**: Pure Go standard library implementation
+
 ## 🎯 Service Manager - Quick Start
 
 ### Basic Usage
@@ -143,6 +155,46 @@ go build -o bin/binarycleaner ./cmd/binarycleaner/
 # Actually remove binaries
 ./bin/binarycleaner --recursive --dir ./build
 ```
+
+### Wait Library - Quick Start
+
+```go
+import "github.com/nzions/sharedgolibs/pkg/waitlib"
+
+func main() {
+    // Simple usage - pass your application version
+    waitlib.Run("v1.2.3")
+}
+```
+
+**CLI Usage:**
+```bash
+# Build the tool
+go build -o bin/waitlib ./cmd/waitlib/
+
+# Show help
+./bin/waitlib --help
+
+# Show version
+./bin/waitlib --version
+
+# Run and wait (process shows as "wait v1.0.0 <uptime>")
+./bin/waitlib
+```
+
+**Docker Usage:**
+```dockerfile
+FROM golang:alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o waitapp ./cmd/waitlib/
+
+FROM alpine:latest
+COPY --from=builder /app/waitapp .
+CMD ["./waitapp"]
+```
+
+In `docker ps`, you'll see: `wait v1.0.0 2d4h15m`
 
 ### Advanced Configuration
 
