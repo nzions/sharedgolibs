@@ -796,7 +796,7 @@ func TestAutoHelpFlag(t *testing.T) {
 			// Check that help flag was automatically added
 			helpFlag := fs.GetFlag("help")
 			if helpFlag == nil {
-				t.Error("help flag should be automatically added")
+				t.Fatal("help flag should be automatically added")
 			}
 
 			if helpFlag.Name != "help" {
@@ -836,7 +836,7 @@ func TestHelpFlagNotAddedIfExists(t *testing.T) {
 	// Check that our custom help flag is preserved
 	helpFlag := fs.GetFlag("help")
 	if helpFlag == nil {
-		t.Error("help flag should exist")
+		t.Fatal("help flag should exist")
 	}
 
 	if helpFlag.ShortName != "" {
