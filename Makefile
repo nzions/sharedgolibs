@@ -1,6 +1,6 @@
-.PHONY: regen-autoport build-tools build-binarycleaner build-servicemanager build-envinfo build-waitlib install-envinfo clean-bins help
+.PHONY: regen-autoport build-tools build-binarycleaner build-servicemanager build-envinfo build-waitlib build-gflag-demo install-envinfo clean-bins help
 
-build-tools: build-servicemanager build-binarycleaner build-envinfo build-waitlib ## Build all CLI tools
+build-tools: build-servicemanager build-binarycleaner build-envinfo build-waitlib build-gflag-demo ## Build all CLI tools
 
 build-servicemanager: ## Build the servicemanager CLI tool
 	@echo "Building servicemanager..."
@@ -25,6 +25,12 @@ build-waitlib: ## Build the waitlib CLI tool
 	@mkdir -p bin
 	@go build -o bin/waitlib ./cmd/waitlib/
 	@echo "✓ waitlib built successfully"
+
+build-gflag-demo: ## Build the gflag-demo CLI tool
+	@echo "Building gflag-demo..."
+	@mkdir -p bin
+	@go build -o bin/gflag-demo ./pkg/gflag/examples/demo/
+	@echo "✓ gflag-demo built successfully"
 
 install-envinfo: build-envinfo ## Install envinfo binary to ~/go/bin
 	@echo "Installing envinfo to ~/go/bin..."

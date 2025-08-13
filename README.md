@@ -63,6 +63,19 @@ Environment variable utilities and common helper functions.
 - Type-safe environment variable parsing
 - Configuration management utilities
 
+### 🏳️ gflag (v0.1.0)
+Advanced command-line flag parsing with support for both POSIX-style short flags and GNU-style long flags, extending Go's standard flag package functionality.
+
+**Key Features:**
+- **Short flags**: `-v`, `-p 8080`, `-n name`
+- **Long flags**: `--verbose`, `--port=8080`, `--name=name`
+- **Combined short flags**: `-vdq` (equivalent to `-v -d -q`)
+- **Mixed formats**: `-v --port=8080 -n name`
+- **Argument separation**: Everything after `--` treated as non-flag arguments
+- **Compatible API**: Similar interface to Go's standard `flag` package
+- **High performance**: Optimized parsing with excellent benchmark results
+- **Zero dependencies**: Pure Go standard library implementation
+
 ### 🧹 Binary Cleaner (v0.1.0)
 Intelligent binary file detection and removal tool for cleaning up build artifacts and compiled binaries.
 
@@ -120,6 +133,47 @@ for _, service := range services {
     fmt.Printf("%s on port %d (%s) - %s\n", 
         service.Name, service.ExternalPort, service.Type, service.Status)
 }
+```
+
+### gflag - Quick Start
+
+```go
+import "github.com/nzions/sharedgolibs/pkg/gflag"
+
+// Define flags with both long and short names
+var verbose = gflag.BoolP("verbose", "v", false, "enable verbose output")
+var port = gflag.IntP("port", "p", 8080, "server port")
+var name = gflag.StringP("name", "n", "myserver", "server name")
+
+func main() {
+    // Parse command line arguments
+    gflag.Parse()
+    
+    if *verbose {
+        fmt.Println("Verbose mode enabled")
+    }
+    fmt.Printf("Server '%s' listening on port %d\n", *name, *port)
+    
+    // Access remaining arguments
+    for _, arg := range gflag.Args() {
+        fmt.Printf("Processing: %s\n", arg)
+    }
+}
+```
+
+**CLI Usage:**
+```bash
+# Short flags
+./myapp -v -p 9000 -n production file1.txt file2.txt
+
+# Long flags  
+./myapp --verbose --port=9000 --name=production file1.txt file2.txt
+
+# Combined short flags
+./myapp -vp 9000 -n production file1.txt file2.txt
+
+# Mixed formats
+./myapp -v --port=9000 --name=production file1.txt file2.txt
 ```
 
 ### Binary Cleaner - Quick Start
