@@ -15,7 +15,7 @@ func TestNewSGLMux(t *testing.T) {
 	// Test basic mux with no options
 	mux := NewSGLMux()
 	if mux == nil {
-		t.Error("NewSGLMux should not return nil")
+		t.Fatal("NewSGLMux should not return nil")
 	}
 
 	if mux.ServeMux == nil {
