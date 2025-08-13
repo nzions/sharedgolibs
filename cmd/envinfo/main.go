@@ -15,7 +15,7 @@ import (
 	"github.com/nzions/sharedgolibs/pkg/util"
 )
 
-const version = "1.0.1"
+const version = "1.1.0"
 
 // ContainerInfo represents comprehensive information about a Docker container
 type ContainerInfo struct {
@@ -36,9 +36,10 @@ type ContainerInfo struct {
 
 func main() {
 	var (
-		jsonOutput  = flag.Bool("json", false, "Output in JSON format")
-		help        = flag.Bool("help", false, "Show help")
-		versionFlag = flag.Bool("version", false, "Show version information")
+		jsonOutput   = flag.Bool("json", false, "Output in JSON format")
+		help         = flag.Bool("help", false, "Show help")
+		versionFlag  = flag.Bool("version", false, "Show version information")
+		versionsFlag = flag.Bool("versions", false, "Show versions table (name, healthy, version)")
 	)
 	flag.Parse()
 
@@ -54,7 +55,7 @@ func main() {
 
 	// Print current environment manager environment
 	currentEnv := util.MustGetEnv("ENVMGR_ENV", "default")
-	if !*jsonOutput {
+	if !*jsonOutput && !*versionsFlag {
 		fmt.Printf("Current envmgr environment: %s\n\n", currentEnv)
 	}
 
@@ -68,6 +69,8 @@ func main() {
 				"containers": []ContainerInfo{},
 			}
 			json.NewEncoder(os.Stdout).Encode(result)
+		} else if *versionsFlag {
+			fmt.Printf("Docker not available: %v\n", err)
 		} else {
 			fmt.Printf("Docker not available: %v\n", err)
 		}
@@ -85,6 +88,8 @@ func main() {
 				"containers": []ContainerInfo{},
 			}
 			json.NewEncoder(os.Stdout).Encode(result)
+		} else if *versionsFlag {
+			fmt.Printf("Failed to get containers: %v\n", err)
 		} else {
 			fmt.Printf("Failed to get containers: %v\n", err)
 		}
@@ -96,7 +101,7 @@ func main() {
 	for _, c := range containers {
 		info, err := getContainerInfo(dockerClient, c)
 		if err != nil {
-			if !*jsonOutput {
+			if !*jsonOutput && !*versionsFlag {
 				fmt.Printf("Warning: Failed to get info for container %s: %v\n", c.ID[:12], err)
 			}
 			continue
@@ -110,6 +115,8 @@ func main() {
 			"containers": containerInfos,
 		}
 		json.NewEncoder(os.Stdout).Encode(result)
+	} else if *versionsFlag {
+		printVersionsTable(containerInfos)
 	} else {
 		printContainerInfo(containerInfos)
 	}
@@ -123,6 +130,7 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  -json           Output in JSON format")
+	fmt.Println("  -versions       Show versions table (name, healthy, version)")
 	fmt.Println("  -version        Show version information")
 	fmt.Println("  -help           Show this help message")
 	fmt.Println()
@@ -418,6 +426,73 @@ func getContainerEntrypoint(inspectResult container.InspectResponse) string {
 	}
 
 	return "" // No suitable entrypoint found, will fallback to version detection
+}
+
+func printVersionsTable(containers []ContainerInfo) {
+	if len(containers) == 0 {
+		fmt.Println("No running containers found.")
+		return
+	}
+
+	// Calculate maximum widths for proper alignment
+	maxNameWidth := 4    // "Name" header
+	maxHealthyWidth := 7 // "Healthy" header
+	maxVersionWidth := 7 // "Version" header
+
+	// First pass: calculate column widths
+	for _, container := range containers {
+		if len(container.Name) > maxNameWidth {
+			maxNameWidth = len(container.Name)
+		}
+		
+		healthy := "Yes"
+		if container.Status != "Up" && !strings.HasPrefix(container.Status, "Up ") {
+			healthy = "No"
+		}
+		if len(healthy) > maxHealthyWidth {
+			maxHealthyWidth = len(healthy)
+		}
+
+		version := container.Version
+		if version == "" || version == "version not detected" {
+			version = "N/A"
+		}
+		// Truncate very long version strings for table display
+		if len(version) > 50 {
+			version = version[:47] + "..."
+		}
+		if len(version) > maxVersionWidth {
+			maxVersionWidth = len(version)
+		}
+	}
+
+	// Add padding
+	maxNameWidth += 2
+	maxHealthyWidth += 2
+	maxVersionWidth += 2
+
+	// Print header
+	fmt.Printf("%-*s%-*s%-*s\n", maxNameWidth, "Name", maxHealthyWidth, "Healthy", maxVersionWidth, "Version")
+	fmt.Printf("%-*s%-*s%-*s\n", maxNameWidth, strings.Repeat("-", maxNameWidth-1), maxHealthyWidth, strings.Repeat("-", maxHealthyWidth-1), maxVersionWidth, strings.Repeat("-", maxVersionWidth-1))
+
+	// Print data rows
+	for _, container := range containers {
+		healthy := "Yes"
+		if container.Status != "Up" && !strings.HasPrefix(container.Status, "Up ") {
+			healthy = "No"
+		}
+
+		version := container.Version
+		if version == "" || version == "version not detected" {
+			version = "N/A"
+		}
+		// Truncate very long version strings for table display
+		if len(version) > 50 {
+			version = version[:47] + "..."
+		}
+
+		fmt.Printf("%-*s%-*s%-*s\n", maxNameWidth, container.Name, maxHealthyWidth, healthy, maxVersionWidth, version)
+	}
 }
 
 func printContainerInfo(containers []ContainerInfo) {
