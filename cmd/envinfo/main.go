@@ -15,7 +15,7 @@ import (
 	"github.com/nzions/sharedgolibs/pkg/util"
 )
 
-const version = "1.1.0"
+const version = "1.2.0"
 
 // ContainerInfo represents comprehensive information about a Docker container
 type ContainerInfo struct {
@@ -40,6 +40,7 @@ func main() {
 		help         = flag.Bool("help", false, "Show help")
 		versionFlag  = flag.Bool("version", false, "Show version information")
 		versionsFlag = flag.Bool("versions", false, "Show versions table (name, healthy, version)")
+		quiet        = flag.Bool("quiet", false, "Suppress progress output")
 	)
 	flag.Parse()
 
@@ -96,17 +97,65 @@ func main() {
 		return
 	}
 
+	// Show status update (to stderr when JSON output, so it doesn't interfere with JSON)
+	// Skip progress output if quiet flag is set
+	if !*quiet {
+		var output *os.File
+		if *jsonOutput {
+			output = os.Stderr
+		} else {
+			output = os.Stdout
+		}
+
+		if *versionsFlag {
+			fmt.Fprintf(output, "Found %d running containers, gathering version information...\n", len(containers))
+		} else {
+			fmt.Fprintf(output, "Found %d running containers, gathering detailed information...\n", len(containers))
+		}
+	}
+
 	// Get detailed information for each container
 	var containerInfos []ContainerInfo
-	for _, c := range containers {
-		info, err := getContainerInfo(dockerClient, c)
+	for i, c := range containers {
+		// Show progress (to stderr when JSON output, skip if quiet)
+		if !*quiet {
+			var output *os.File
+			if *jsonOutput {
+				output = os.Stderr
+			} else {
+				output = os.Stdout
+			}
+
+			containerName := "unknown"
+			if len(c.Names) > 0 {
+				containerName = strings.TrimPrefix(c.Names[0], "/")
+			}
+			fmt.Fprintf(output, "Processing container %d/%d: %s...\n", i+1, len(containers), containerName)
+		}
+
+		var info ContainerInfo
+		var err error
+
+		if *versionsFlag {
+			// For versions flag, use faster path (only collect version info)
+			info, err = getContainerInfoForVersions(dockerClient, c)
+		} else {
+			// For full output, get all information
+			info, err = getContainerInfo(dockerClient, c)
+		}
+
 		if err != nil {
-			if !*jsonOutput && !*versionsFlag {
+			if !*jsonOutput && !*quiet {
 				fmt.Printf("Warning: Failed to get info for container %s: %v\n", c.ID[:12], err)
 			}
 			continue
 		}
 		containerInfos = append(containerInfos, info)
+	}
+
+	// Clear status updates and show final results
+	if !*jsonOutput && !*versionsFlag && !*quiet {
+		fmt.Println() // Add blank line before results
 	}
 
 	if *jsonOutput {
@@ -131,6 +180,7 @@ func showHelp() {
 	fmt.Println("Options:")
 	fmt.Println("  -json           Output in JSON format")
 	fmt.Println("  -versions       Show versions table (name, healthy, version)")
+	fmt.Println("  -quiet          Suppress progress output")
 	fmt.Println("  -version        Show version information")
 	fmt.Println("  -help           Show this help message")
 	fmt.Println()
@@ -199,6 +249,33 @@ func getRunningContainers(dockerClient *client.Client) ([]container.Summary, err
 	}
 
 	return containers, nil
+}
+
+func getContainerInfoForVersions(dockerClient *client.Client, c container.Summary) (ContainerInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Get detailed container information
+	inspectResult, err := dockerClient.ContainerInspect(ctx, c.ID)
+	if err != nil {
+		return ContainerInfo{}, fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	info := ContainerInfo{
+		ID:     c.ID[:12],
+		Image:  c.Image,
+		Status: c.Status,
+	}
+
+	// Get container name
+	if len(c.Names) > 0 {
+		info.Name = strings.TrimPrefix(c.Names[0], "/")
+	}
+
+	// Only get version information (skip keys, curl, wget checks for speed)
+	info.Version = getContainerVersionFast(dockerClient, c.ID, inspectResult)
+
+	return info, nil
 }
 
 func getContainerInfo(dockerClient *client.Client, c container.Summary) (ContainerInfo, error) {
@@ -347,6 +424,32 @@ func getContainerVersionFromEntrypoint(dockerClient *client.Client, containerID 
 	}
 
 	if result != "" && !strings.Contains(result, "error") && !strings.Contains(result, "not found") && !strings.Contains(result, "unknown flag") && !strings.Contains(result, "invalid") {
+		return result
+	}
+
+	return "version not detected"
+}
+
+func getContainerVersionFast(dockerClient *client.Client, containerID string, inspectResult container.InspectResponse) string {
+	entrypoint := getContainerEntrypoint(inspectResult)
+	if entrypoint == "" || isSystemCommand(entrypoint) {
+		return "version not detected"
+	}
+
+	// Skip --help check for speed, directly try version commands
+	// Try --version first (most common)
+	result := execInContainer(dockerClient, containerID, []string{entrypoint, "--version"})
+	if result != "" && !strings.Contains(result, "error") && !strings.Contains(result, "not found") &&
+		!strings.Contains(result, "unknown flag") && !strings.Contains(result, "invalid") &&
+		!strings.Contains(result, "Usage:") {
+		return result
+	}
+
+	// Try -version as fallback
+	result = execInContainer(dockerClient, containerID, []string{entrypoint, "-version"})
+	if result != "" && !strings.Contains(result, "error") && !strings.Contains(result, "not found") &&
+		!strings.Contains(result, "unknown flag") && !strings.Contains(result, "invalid") &&
+		!strings.Contains(result, "Usage:") {
 		return result
 	}
 
