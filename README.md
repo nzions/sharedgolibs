@@ -63,7 +63,7 @@ Environment variable utilities and common helper functions.
 - Type-safe environment variable parsing
 - Configuration management utilities
 
-### 🏳️ gflag (v0.1.0)
+### 🏳️ gflag (v1.0.0)
 Advanced command-line flag parsing with support for both POSIX-style short flags and GNU-style long flags, extending Go's standard flag package functionality.
 
 **Key Features:**

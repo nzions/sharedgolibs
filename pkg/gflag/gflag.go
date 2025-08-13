@@ -55,7 +55,7 @@ import (
 )
 
 // Version is the current version of the gflag package
-const Version = "0.1.0"
+const Version = "1.0.0"
 
 // Value represents the interface to the dynamic value stored in a flag.
 type Value interface {
