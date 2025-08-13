@@ -3,6 +3,10 @@
 package gflag
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -350,7 +354,163 @@ func TestFlagSet_Args(t *testing.T) {
 	}
 }
 
-func TestFlagSet_Errors(t *testing.T) {
+func TestErrorHandling_ContinueOnError(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupFlags  func(*FlagSet)
+		args        []string
+		expectedErr string
+	}{
+		{
+			name: "undefined long flag",
+			setupFlags: func(fs *FlagSet) {
+				fs.Bool("verbose", "v", false, "verbose output")
+			},
+			args:        []string{"--undefined"},
+			expectedErr: "flag provided but not defined: -undefined",
+		},
+		{
+			name: "undefined short flag",
+			setupFlags: func(fs *FlagSet) {
+				fs.Bool("verbose", "v", false, "verbose output")
+			},
+			args:        []string{"-u"},
+			expectedErr: "flag provided but not defined: -u",
+		},
+		{
+			name: "missing value for string flag",
+			setupFlags: func(fs *FlagSet) {
+				fs.String("name", "n", "default", "name value")
+			},
+			args:        []string{"--name"},
+			expectedErr: "flag needs an argument: -name",
+		},
+		{
+			name: "missing value for int flag",
+			setupFlags: func(fs *FlagSet) {
+				fs.Int("port", "p", 3000, "port number")
+			},
+			args:        []string{"-p"},
+			expectedErr: "flag needs an argument: -p",
+		},
+		{
+			name: "invalid int value",
+			setupFlags: func(fs *FlagSet) {
+				fs.Int("port", "p", 3000, "port number")
+			},
+			args:        []string{"-p", "invalid"},
+			expectedErr: "strconv.ParseInt: parsing \"invalid\": invalid syntax",
+		},
+		{
+			name: "invalid bool value",
+			setupFlags: func(fs *FlagSet) {
+				fs.Bool("verbose", "v", false, "verbose output")
+			},
+			args:        []string{"--verbose=invalid"},
+			expectedErr: "strconv.ParseBool: parsing \"invalid\": invalid syntax",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := NewFlagSet("test", ContinueOnError)
+			tt.setupFlags(fs)
+
+			err := fs.Parse(tt.args)
+			if err == nil {
+				t.Fatal("expected error but got none")
+			}
+			if err.Error() != tt.expectedErr {
+				t.Errorf("expected error %q, got %q", tt.expectedErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestErrorHandling_PanicOnError(t *testing.T) {
+	tests := []struct {
+		name       string
+		setupFlags func(*FlagSet)
+		args       []string
+	}{
+		{
+			name: "undefined long flag triggers panic",
+			setupFlags: func(fs *FlagSet) {
+				fs.Bool("verbose", "v", false, "verbose output")
+			},
+			args: []string{"--undefined"},
+		},
+		{
+			name: "undefined short flag triggers panic",
+			setupFlags: func(fs *FlagSet) {
+				fs.Bool("verbose", "v", false, "verbose output")
+			},
+			args: []string{"-u"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := NewFlagSet("test", PanicOnError)
+			tt.setupFlags(fs)
+
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatal("expected panic but didn't get one")
+				}
+			}()
+
+			fs.Parse(tt.args)
+			t.Fatal("expected panic before reaching this point")
+		})
+	}
+}
+
+func TestErrorHandling_UndefinedFlagMessages(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		expectedErr string
+	}{
+		{
+			name:        "long flag error message format",
+			args:        []string{"--nonexistent"},
+			expectedErr: "flag provided but not defined: -nonexistent",
+		},
+		{
+			name:        "short flag error message format",
+			args:        []string{"-x"},
+			expectedErr: "flag provided but not defined: -x",
+		},
+		{
+			name:        "long flag with value error message format",
+			args:        []string{"--missing=value"},
+			expectedErr: "flag provided but not defined: -missing",
+		},
+		{
+			name:        "combined short flags with undefined",
+			args:        []string{"-xyz"},
+			expectedErr: "flag provided but not defined: -x",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := NewFlagSet("test", ContinueOnError)
+			// Don't add any flags, so all will be undefined
+
+			err := fs.Parse(tt.args)
+			if err == nil {
+				t.Fatal("expected error but got none")
+			}
+			if err.Error() != tt.expectedErr {
+				t.Errorf("expected error %q, got %q", tt.expectedErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestFlagSet_ErrorsLegacy(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupFlags  func(*FlagSet)
@@ -420,6 +580,100 @@ func TestFlagSet_Errors(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestHandleError(t *testing.T) {
+	testErr := fmt.Errorf("test error")
+
+	tests := []struct {
+		name          string
+		errorHandling ErrorHandling
+		expectPanic   bool
+		expectReturn  bool
+	}{
+		{
+			name:          "ContinueOnError returns error",
+			errorHandling: ContinueOnError,
+			expectPanic:   false,
+			expectReturn:  true,
+		},
+		{
+			name:          "PanicOnError panics",
+			errorHandling: PanicOnError,
+			expectPanic:   true,
+			expectReturn:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := NewFlagSet("test", tt.errorHandling)
+
+			if tt.expectPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Fatal("expected panic but didn't get one")
+					}
+				}()
+			}
+
+			err := fs.handleError(testErr)
+
+			if tt.expectReturn && err == nil {
+				t.Fatal("expected error to be returned but got nil")
+			}
+			if tt.expectReturn && err.Error() != testErr.Error() {
+				t.Errorf("expected error %q, got %q", testErr.Error(), err.Error())
+			}
+
+			if tt.expectPanic {
+				t.Fatal("expected panic before reaching this point")
+			}
+		})
+	}
+}
+
+func TestUndefinedFlagInCombinedShortFlags(t *testing.T) {
+	fs := NewFlagSet("test", ContinueOnError)
+	fs.Bool("verbose", "v", false, "verbose output")
+	fs.Bool("debug", "d", false, "debug output")
+	// Note: no 'x' flag defined
+
+	err := fs.Parse([]string{"-vdx"})
+	if err == nil {
+		t.Fatal("expected error for undefined flag in combined short flags")
+	}
+
+	expectedErr := "flag provided but not defined: -x"
+	if err.Error() != expectedErr {
+		t.Errorf("expected error %q, got %q", expectedErr, err.Error())
+	}
+}
+
+func TestErrorHandlingWithPackageLevelParse(t *testing.T) {
+	// Test that package-level functions handle errors correctly
+	// Since CommandLine uses ExitOnError, we can't test it directly
+	// but we can verify the mechanism works by testing with a custom flagset
+
+	originalCommandLine := CommandLine
+	defer func() { CommandLine = originalCommandLine }()
+
+	// Replace CommandLine with a test flagset that uses ContinueOnError
+	CommandLine = NewFlagSet("test", ContinueOnError)
+	CommandLine.Bool("test-flag", "t", false, "test flag")
+
+	// Test that undefined flags are caught in package-level parsing
+	// We can't call Parse() directly as it would use os.Args, so we test
+	// the underlying mechanism by calling Parse on our test CommandLine
+	err := CommandLine.Parse([]string{"--undefined"})
+	if err == nil {
+		t.Fatal("expected error for undefined flag")
+	}
+
+	expectedErr := "flag provided but not defined: -undefined"
+	if err.Error() != expectedErr {
+		t.Errorf("expected error %q, got %q", expectedErr, err.Error())
 	}
 }
 
@@ -521,5 +775,175 @@ func BenchmarkFlagSet_CombinedFlags(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		fs.Parse(args)
+	}
+}
+
+func TestAutoHelpFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "help flag automatically added",
+			args: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := NewFlagSet("test", ContinueOnError)
+
+			// Check that help flag was automatically added
+			helpFlag := fs.GetFlag("help")
+			if helpFlag == nil {
+				t.Error("help flag should be automatically added")
+			}
+
+			if helpFlag.Name != "help" {
+				t.Errorf("expected help flag name to be 'help', got %q", helpFlag.Name)
+			}
+
+			if helpFlag.ShortName != "h" {
+				t.Errorf("expected help flag short name to be 'h', got %q", helpFlag.ShortName)
+			}
+
+			if helpFlag.Usage != "show help message" {
+				t.Errorf("expected help flag usage to be 'show help message', got %q", helpFlag.Usage)
+			}
+		})
+	}
+}
+
+func TestHelpFlagNotAddedIfExists(t *testing.T) {
+	// Create a flagset and manually add help flag before calling NewFlagSet's automatic addition
+	fs := &FlagSet{
+		name:          "test",
+		flags:         make(map[string]*Flag),
+		shortMap:      make(map[string]*Flag),
+		errorHandling: ContinueOnError,
+	}
+	fs.usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", fs.name)
+		fs.PrintDefaults()
+	}
+
+	// Add a custom help flag before the automatic one would be added
+	fs.BoolVar(new(bool), "help", "", false, "custom help message")
+
+	// Now call the method that would add automatic help
+	fs.addHelpFlagIfNotExists()
+
+	// Check that our custom help flag is preserved
+	helpFlag := fs.GetFlag("help")
+	if helpFlag == nil {
+		t.Error("help flag should exist")
+	}
+
+	if helpFlag.ShortName != "" {
+		t.Errorf("expected custom help flag short name to be empty, got %q", helpFlag.ShortName)
+	}
+
+	if helpFlag.Usage != "custom help message" {
+		t.Errorf("expected custom help flag usage to be 'custom help message', got %q", helpFlag.Usage)
+	}
+}
+
+func TestHelpFlagTriggersUsage(t *testing.T) {
+	fs := NewFlagSet("test", ContinueOnError)
+	fs.AddString("name", "n", "default", "a name flag")
+
+	// Test --help flag
+	err := fs.Parse([]string{"--help"})
+	if err != nil {
+		t.Errorf("help flag should not return error with ContinueOnError, got: %v", err)
+	}
+
+	// Test -h flag
+	fs2 := NewFlagSet("test", ContinueOnError)
+	fs2.AddString("name", "n", "default", "a name flag")
+
+	err = fs2.Parse([]string{"-h"})
+	if err != nil {
+		t.Errorf("help flag should not return error with ContinueOnError, got: %v", err)
+	}
+}
+
+// TestExitOnError_Subprocess tests the ExitOnError behavior using subprocess
+func TestExitOnError_Subprocess(t *testing.T) {
+	// Path to the test program
+	testProgram := "testdata/exit_test_program.go"
+
+	// Build the test program first
+	tempBinary := "testdata/exit_test_program_binary"
+	buildCmd := exec.Command("go", "build", "-o", tempBinary, testProgram)
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("failed to build test program: %v", err)
+	}
+	defer os.Remove(tempBinary) // Clean up
+
+	tests := []struct {
+		name         string
+		args         []string
+		expectedCode int
+		expectStderr string
+	}{
+		{
+			name:         "undefined long flag exits with code 2",
+			args:         []string{"--undefined"},
+			expectedCode: 2,
+			expectStderr: "flag provided but not defined: -undefined",
+		},
+		{
+			name:         "undefined short flag exits with code 2",
+			args:         []string{"-u"},
+			expectedCode: 2,
+			expectStderr: "flag provided but not defined: -u",
+		},
+		{
+			name:         "help flag exits with code 0",
+			args:         []string{"--help"},
+			expectedCode: 0,
+			expectStderr: "Usage of",
+		},
+		{
+			name:         "valid flag does not exit",
+			args:         []string{"--valid"},
+			expectedCode: 0,
+			expectStderr: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Run the test program with specific arguments
+			cmd := exec.Command("./" + tempBinary)
+			cmd.Args = append(cmd.Args, tt.args...)
+
+			output, err := cmd.CombinedOutput()
+
+			// Check exit code
+			var exitCode int
+			if err != nil {
+				if exitError, ok := err.(*exec.ExitError); ok {
+					exitCode = exitError.ExitCode()
+				} else {
+					t.Fatalf("unexpected error type: %v", err)
+				}
+			} else {
+				exitCode = 0
+			}
+
+			if exitCode != tt.expectedCode {
+				t.Errorf("expected exit code %d, got %d. Output: %s", tt.expectedCode, exitCode, string(output))
+			}
+
+			// Check stderr output if expected
+			if tt.expectStderr != "" {
+				outputStr := string(output)
+				if !strings.Contains(outputStr, tt.expectStderr) {
+					t.Errorf("expected output to contain %q, got %q", tt.expectStderr, outputStr)
+				}
+			}
+		})
 	}
 }

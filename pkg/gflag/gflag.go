@@ -6,6 +6,11 @@
 // This package extends the functionality of Go's standard flag package
 // to support POSIX-style short flags and GNU-style long flags.
 //
+// Automatic Help Flag:
+// The package automatically adds a --help (-h) flag to all FlagSets unless
+// a help flag already exists. When --help or -h is used, it displays usage
+// information and exits (or handles based on ErrorHandling setting).
+//
 // Usage (Traditional API):
 //
 //	import "github.com/nzions/sharedgolibs/pkg/gflag"
@@ -45,6 +50,7 @@
 //   - Short flags: -v, -p 8080, -n name
 //   - Long flags: --verbose, --port=8080, --name=name
 //   - Combined short flags: -vp 8080 (equivalent to -v -p 8080)
+//   - Help flags: --help, -h (automatically added)
 package gflag
 
 import (
@@ -55,7 +61,7 @@ import (
 )
 
 // Version is the current version of the gflag package
-const Version = "1.0.0"
+const Version = "1.2.0"
 
 // Value represents the interface to the dynamic value stored in a flag.
 type Value interface {
@@ -74,12 +80,13 @@ type Flag struct {
 
 // FlagSet represents a set of defined flags.
 type FlagSet struct {
-	name     string
-	parsed   bool
-	args     []string // arguments after flags
-	flags    map[string]*Flag
-	shortMap map[string]*Flag // maps short names to flags
-	usage    func()
+	name          string
+	parsed        bool
+	args          []string // arguments after flags
+	flags         map[string]*Flag
+	shortMap      map[string]*Flag // maps short names to flags
+	usage         func()
+	errorHandling ErrorHandling
 }
 
 // CommandLine is the default set of command-line flags, parsed from os.Args.
@@ -98,15 +105,30 @@ const (
 // error handling property.
 func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
 	f := &FlagSet{
-		name:     name,
-		flags:    make(map[string]*Flag),
-		shortMap: make(map[string]*Flag),
+		name:          name,
+		flags:         make(map[string]*Flag),
+		shortMap:      make(map[string]*Flag),
+		errorHandling: errorHandling,
 	}
 	f.usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", f.name)
 		f.PrintDefaults()
 	}
+
+	// Automatically add help flags if they don't already exist
+	f.addHelpFlagIfNotExists()
+
 	return f
+}
+
+// addHelpFlagIfNotExists automatically adds help flags if they don't already exist
+func (f *FlagSet) addHelpFlagIfNotExists() {
+	// Check if help flag already exists
+	if _, exists := f.flags["help"]; !exists {
+		// Create a new bool variable for the help flag
+		helpPtr := new(bool)
+		f.BoolVar(helpPtr, "help", "h", false, "show help message")
+	}
 }
 
 // boolValue implements Value for bool flags.
@@ -241,22 +263,37 @@ func (f *FlagSet) Parse(arguments []string) error {
 			continue
 		}
 
+		var err error
 		if strings.HasPrefix(arg, "--") {
 			// Long flag
-			err := f.parseLongFlag(arg[2:], arguments, &i)
-			if err != nil {
-				return err
-			}
+			err = f.parseLongFlag(arg[2:], arguments, &i)
 		} else {
 			// Short flag(s)
-			err := f.parseShortFlag(arg[1:], arguments, &i)
-			if err != nil {
-				return err
-			}
+			err = f.parseShortFlag(arg[1:], arguments, &i)
+		}
+
+		if err != nil {
+			return f.handleError(err)
 		}
 	}
 
 	return nil
+}
+
+// handleError handles errors based on the ErrorHandling setting
+func (f *FlagSet) handleError(err error) error {
+	switch f.errorHandling {
+	case ExitOnError:
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+		return nil // This will never be reached
+	case PanicOnError:
+		panic(err)
+	case ContinueOnError:
+		return err
+	default:
+		return err
+	}
 }
 
 // parseLongFlag handles --flag or --flag=value format
@@ -275,6 +312,12 @@ func (f *FlagSet) parseLongFlag(flagStr string, arguments []string, i *int) erro
 	flag, exists := f.flags[name]
 	if !exists {
 		return fmt.Errorf("flag provided but not defined: -%s", name)
+	}
+
+	// Special handling for help flag
+	if name == "help" {
+		f.showHelpAndExit()
+		return nil
 	}
 
 	// Special handling for bool flags
@@ -309,6 +352,14 @@ func (f *FlagSet) parseShortFlag(flagStr string, arguments []string, i *int) err
 			return fmt.Errorf("flag provided but not defined: -%s", shortName)
 		}
 
+		// Special handling for help flag (short form)
+		if shortName == "h" {
+			if helpFlag, helpExists := f.flags["help"]; helpExists && helpFlag.ShortName == "h" {
+				f.showHelpAndExit()
+				return nil
+			}
+		}
+
 		// Special handling for bool flags
 		if _, isBool := flag.Value.(*boolValue); isBool {
 			err := flag.Value.Set("true")
@@ -334,6 +385,19 @@ func (f *FlagSet) parseShortFlag(flagStr string, arguments []string, i *int) err
 	}
 
 	return nil
+}
+
+// showHelpAndExit displays help message and exits based on error handling
+func (f *FlagSet) showHelpAndExit() {
+	f.usage()
+	switch f.errorHandling {
+	case ExitOnError:
+		os.Exit(0)
+	case PanicOnError:
+		panic("help requested")
+	case ContinueOnError:
+		// Do nothing, just return
+	}
 }
 
 // Args returns the non-flag arguments.
