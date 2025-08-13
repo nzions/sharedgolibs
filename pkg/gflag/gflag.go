@@ -27,6 +27,28 @@
 //	    fmt.Printf("Server %s listening on port %d\n", *name, *port)
 //	}
 //
+// Usage (Traditional API with *Var functions):
+//
+//	import "github.com/nzions/sharedgolibs/pkg/gflag"
+//
+//	var verbose bool
+//	var port int
+//	var name string
+//
+//	func init() {
+//	    gflag.BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
+//	    gflag.IntVarP(&port, "port", "p", 8080, "server port")
+//	    gflag.StringVarP(&name, "name", "n", "default", "server name")
+//	}
+//
+//	func main() {
+//	    gflag.Parse()
+//	    if verbose {
+//	        fmt.Println("Verbose mode enabled")
+//	    }
+//	    fmt.Printf("Server %s listening on port %d\n", name, port)
+//	}
+//
 // Usage (Modern API):
 //
 //	import "github.com/nzions/sharedgolibs/pkg/gflag"
@@ -46,6 +68,15 @@
 //	        flags.GetString("name"), flags.GetInt("port"))
 //	}
 //
+// API Functions:
+//
+// The package provides both Type and TypeP variants for all flag functions:
+//   - Type functions: String, Bool, Int, StringVar, BoolVar, IntVar
+//   - TypeP functions: StringP, BoolP, IntP, StringVarP, BoolVarP, IntVarP
+//
+// The P variants accept a short name parameter, while the non-P variants
+// only accept the long name.
+//
 // Supports the following flag formats:
 //   - Short flags: -v, -p 8080, -n name
 //   - Long flags: --verbose, --port=8080, --name=name
@@ -61,7 +92,7 @@ import (
 )
 
 // Version is the current version of the gflag package
-const Version = "1.2.0"
+const Version = "1.3.0"
 
 // Value represents the interface to the dynamic value stored in a flag.
 type Value interface {
@@ -567,6 +598,48 @@ func IntP(name, shortName string, value int, usage string) *int {
 // Int defines an int flag with specified name, default value, and usage string.
 func Int(name string, value int, usage string) *int {
 	return CommandLine.Int(name, "", value, usage)
+}
+
+// Var defines a flag with the specified name and usage string.
+// The type and value of the flag are represented by the first argument, of type Value.
+func Var(value Value, name, usage string) {
+	CommandLine.Var(value, name, "", usage)
+}
+
+// VarP defines a flag with the specified name, short name, and usage string.
+// The type and value of the flag are represented by the first argument, of type Value.
+func VarP(value Value, name, shortName, usage string) {
+	CommandLine.Var(value, name, shortName, usage)
+}
+
+// StringVar defines a string flag with specified name, default value, and usage string.
+func StringVar(p *string, name, value, usage string) {
+	CommandLine.StringVar(p, name, "", value, usage)
+}
+
+// StringVarP defines a string flag with specified name, short name, default value, and usage string.
+func StringVarP(p *string, name, shortName, value, usage string) {
+	CommandLine.StringVar(p, name, shortName, value, usage)
+}
+
+// BoolVar defines a bool flag with specified name, default value, and usage string.
+func BoolVar(p *bool, name string, value bool, usage string) {
+	CommandLine.BoolVar(p, name, "", value, usage)
+}
+
+// BoolVarP defines a bool flag with specified name, short name, default value, and usage string.
+func BoolVarP(p *bool, name, shortName string, value bool, usage string) {
+	CommandLine.BoolVar(p, name, shortName, value, usage)
+}
+
+// IntVar defines an int flag with specified name, default value, and usage string.
+func IntVar(p *int, name string, value int, usage string) {
+	CommandLine.IntVar(p, name, "", value, usage)
+}
+
+// IntVarP defines an int flag with specified name, short name, default value, and usage string.
+func IntVarP(p *int, name, shortName string, value int, usage string) {
+	CommandLine.IntVar(p, name, shortName, value, usage)
 }
 
 // Parse parses the command-line flags from os.Args[1:].

@@ -947,3 +947,198 @@ func TestExitOnError_Subprocess(t *testing.T) {
 		})
 	}
 }
+
+// testValue is a custom Value implementation for testing Var function
+type testValue struct {
+	value string
+}
+
+func (tv *testValue) String() string {
+	return tv.value
+}
+
+func (tv *testValue) Set(s string) error {
+	tv.value = s
+	return nil
+}
+
+func TestPackageLevelVarFunctions(t *testing.T) {
+	// Save original CommandLine state
+	originalCommandLine := CommandLine
+	defer func() {
+		CommandLine = originalCommandLine
+	}()
+
+	// Create a fresh CommandLine for testing
+	CommandLine = NewFlagSet("test", ContinueOnError)
+
+	// Test VarP function with a custom Value implementation
+	var customFlag Value = &testValue{}
+	VarP(customFlag, "custom", "c", "custom flag for testing")
+
+	// Test StringVarP function
+	var stringFlag string
+	StringVarP(&stringFlag, "string", "s", "default", "string flag for testing")
+
+	// Test BoolVarP function
+	var boolFlag bool
+	BoolVarP(&boolFlag, "bool", "b", false, "bool flag for testing")
+
+	// Test IntVarP function
+	var intFlag int
+	IntVarP(&intFlag, "int", "i", 42, "int flag for testing")
+
+	// Test parsing with the VarP functions
+	args := []string{"--custom=test", "--string=hello", "--bool", "--int=100"}
+	err := CommandLine.Parse(args)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Verify values
+	if customFlag.String() != "test" {
+		t.Errorf("expected custom flag to be 'test', got %q", customFlag.String())
+	}
+
+	if stringFlag != "hello" {
+		t.Errorf("expected string flag to be 'hello', got %q", stringFlag)
+	}
+
+	if !boolFlag {
+		t.Errorf("expected bool flag to be true, got %v", boolFlag)
+	}
+
+	if intFlag != 100 {
+		t.Errorf("expected int flag to be 100, got %d", intFlag)
+	}
+}
+
+func TestPackageLevelVarFunctionsNoShort(t *testing.T) {
+	// Save original CommandLine state
+	originalCommandLine := CommandLine
+	defer func() {
+		CommandLine = originalCommandLine
+	}()
+
+	// Create a fresh CommandLine for testing
+	CommandLine = NewFlagSet("test", ContinueOnError)
+
+	// Test Var function (no short name)
+	var customFlag Value = &testValue{}
+	Var(customFlag, "custom", "custom flag for testing")
+
+	// Test StringVar function (no short name)
+	var stringFlag string
+	StringVar(&stringFlag, "string", "default", "string flag for testing")
+
+	// Test BoolVar function (no short name)
+	var boolFlag bool
+	BoolVar(&boolFlag, "bool", false, "bool flag for testing")
+
+	// Test IntVar function (no short name)
+	var intFlag int
+	IntVar(&intFlag, "int", 42, "int flag for testing")
+
+	// Test parsing with the Var functions (long names only)
+	args := []string{"--custom=test", "--string=hello", "--bool", "--int=100"}
+	err := CommandLine.Parse(args)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Verify values
+	if customFlag.String() != "test" {
+		t.Errorf("expected custom flag to be 'test', got %q", customFlag.String())
+	}
+
+	if stringFlag != "hello" {
+		t.Errorf("expected string flag to be 'hello', got %q", stringFlag)
+	}
+
+	if !boolFlag {
+		t.Errorf("expected bool flag to be true, got %v", boolFlag)
+	}
+
+	if intFlag != 100 {
+		t.Errorf("expected int flag to be 100, got %d", intFlag)
+	}
+}
+
+func TestPackageLevelVarFunctionsWithShortFlags(t *testing.T) {
+	// Save original CommandLine state
+	originalCommandLine := CommandLine
+	defer func() {
+		CommandLine = originalCommandLine
+	}()
+
+	// Create a fresh CommandLine for testing
+	CommandLine = NewFlagSet("test", ContinueOnError)
+
+	// Test with short flags using the P variants
+	var stringFlag string
+	var boolFlag bool
+	var intFlag int
+
+	StringVarP(&stringFlag, "string", "s", "default", "string flag")
+	BoolVarP(&boolFlag, "bool", "b", false, "bool flag")
+	IntVarP(&intFlag, "int", "i", 42, "int flag")
+
+	// Test parsing with short flags
+	args := []string{"-s", "world", "-b", "-i", "200"}
+	err := CommandLine.Parse(args)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Verify values
+	if stringFlag != "world" {
+		t.Errorf("expected string flag to be 'world', got %q", stringFlag)
+	}
+
+	if !boolFlag {
+		t.Errorf("expected bool flag to be true, got %v", boolFlag)
+	}
+
+	if intFlag != 200 {
+		t.Errorf("expected int flag to be 200, got %d", intFlag)
+	}
+}
+
+func TestPackageLevelVarFunctionsDefaults(t *testing.T) {
+	// Save original CommandLine state
+	originalCommandLine := CommandLine
+	defer func() {
+		CommandLine = originalCommandLine
+	}()
+
+	// Create a fresh CommandLine for testing
+	CommandLine = NewFlagSet("test", ContinueOnError)
+
+	// Test default values using P variants
+	var stringFlag string
+	var boolFlag bool
+	var intFlag int
+
+	StringVarP(&stringFlag, "string", "s", "defaultStr", "string flag")
+	BoolVarP(&boolFlag, "bool", "b", true, "bool flag")
+	IntVarP(&intFlag, "int", "i", 999, "int flag")
+
+	// Parse with no arguments to test defaults
+	err := CommandLine.Parse([]string{})
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Verify default values
+	if stringFlag != "defaultStr" {
+		t.Errorf("expected string flag default to be 'defaultStr', got %q", stringFlag)
+	}
+
+	if !boolFlag {
+		t.Errorf("expected bool flag default to be true, got %v", boolFlag)
+	}
+
+	if intFlag != 999 {
+		t.Errorf("expected int flag default to be 999, got %d", intFlag)
+	}
+}

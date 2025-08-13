@@ -88,17 +88,31 @@ func main() {
 #### Defining Flags
 
 ```go
-// String flags
+// Method 1: Using Type and TypeP functions (returns pointers)
 var name = gflag.StringP("name", "n", "default", "description")
 var config = gflag.String("config", "/etc/app.conf", "config file path")
 
-// Boolean flags
 var verbose = gflag.BoolP("verbose", "v", false, "enable verbose output")
 var debug = gflag.Bool("debug", false, "enable debug mode")
 
-// Integer flags
 var port = gflag.IntP("port", "p", 8080, "server port")
 var workers = gflag.Int("workers", 4, "number of workers")
+
+// Method 2: Using TypeVar and TypeVarP functions (assigns to existing variables)
+var name string
+var verbose bool
+var port int
+
+func init() {
+    gflag.StringVarP(&name, "name", "n", "default", "description")
+    gflag.BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
+    gflag.IntVarP(&port, "port", "p", 8080, "server port")
+    
+    // Or without short names
+    gflag.StringVar(&config, "config", "/etc/app.conf", "config file path")
+    gflag.BoolVar(&debug, "debug", false, "enable debug mode")
+    gflag.IntVar(&workers, "workers", 4, "number of workers")
+}
 ```
 
 #### Parsing and Accessing Arguments
@@ -269,7 +283,12 @@ cd examples/file-processor && go build .
 
 ## Version
 
-Current version: **1.0.0**
+Current version: **1.3.0**
+
+### Recent Changes
+
+- **v1.3.0**: Added `*Var` and `*VarP` package-level functions (`StringVar`, `BoolVar`, `IntVar`, `StringVarP`, `BoolVarP`, `IntVarP`, `Var`, `VarP`) for consistency with Go's standard flag package
+- **v1.2.0**: Previous stable release
 
 ## License
 
