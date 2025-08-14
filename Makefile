@@ -1,59 +1,67 @@
-.PHONY: regen-autoport build-tools build-binarycleaner build-servicemanager build-envinfo build-waitlib build-gflag-demo install-envinfo clean-bins help
+# Go shared libraries Makefile - DRY and KISS principles
+GO_VERSION := $(shell go version | cut -d' ' -f3)
+BIN_DIR := bin
+CMD_DIR := cmd
 
-build-tools: build-servicemanager build-binarycleaner build-envinfo build-waitlib build-gflag-demo ## Build all CLI tools
+# Get all cmd directories dynamically
+CMD_TARGETS := $(shell find $(CMD_DIR) -name "main.go" -exec dirname {} \; | sed 's|$(CMD_DIR)/||')
+BUILD_TARGETS := $(addprefix build-, $(CMD_TARGETS))
 
+.PHONY: all build test clean install help tidy mod-verify $(BUILD_TARGETS)
 
-build-servicemanager: ## Build the servicemanager CLI tool
-	@echo "Building servicemanager..."
-	@mkdir -p bin
-	@go build -o bin/servicemanager ./cmd/servicemanager/
-	@echo "✓ servicemanager built successfully"
+all: build test ## Build and test everything
 
-build-binarycleaner: ## Build the binarycleaner CLI tool
-	@echo "Building binarycleaner..."
-	@mkdir -p bin
-	@go build -o bin/binarycleaner ./cmd/binarycleaner/
-	@echo "✓ binarycleaner built successfully"
+build: $(BUILD_TARGETS) ## Build all CLI tools
 
-build-envinfo: ## Build the envinfo CLI tool
-	@echo "Building envinfo..."
-	@mkdir -p bin
-	@go build -o bin/envinfo ./cmd/envinfo/
-	@echo "✓ envinfo built successfully"
+test: ## Run all tests with coverage
+	@echo "Running tests..."
+	@go test -v -race -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "✓ Tests completed. Coverage report: coverage.html"
 
-build-waitlib: ## Build the waitlib CLI tool
-	@echo "Building waitlib..."
-	@mkdir -p bin
-	@go build -o bin/waitlib ./cmd/waitlib/
-	@echo "✓ waitlib built successfully"
+# Generic build rule for all cmd targets
+$(BUILD_TARGETS): build-%:
+	@echo "Building $*..."
+	@mkdir -p $(BIN_DIR)
+	@go build -ldflags="-s -w" -o $(BIN_DIR)/$* ./$(CMD_DIR)/$*/
+	@echo "✓ $* built successfully"
 
-build-gflag-demo: ## Build the gflag-demo CLI tool
+# Special build for gflag-demo (different path)
+build-gflag-demo: ## Build the gflag-demo example
 	@echo "Building gflag-demo..."
-	@mkdir -p bin
-	@go build -o bin/gflag-demo ./pkg/gflag/examples/demo/
+	@mkdir -p $(BIN_DIR)
+	@go build -ldflags="-s -w" -o $(BIN_DIR)/gflag-demo ./pkg/gflag/examples/demo/
 	@echo "✓ gflag-demo built successfully"
 
-install-envinfo: build-envinfo ## Install envinfo binary to ~/go/bin
+install: build-envinfo ## Install envinfo to ~/go/bin
 	@echo "Installing envinfo to ~/go/bin..."
 	@mkdir -p ~/go/bin
-	@cp bin/envinfo ~/go/bin/envinfo
-	@echo "✓ envinfo installed successfully to ~/go/bin/envinfo"
+	@cp $(BIN_DIR)/envinfo ~/go/bin/envinfo
+	@echo "✓ envinfo installed to ~/go/bin/envinfo"
 
-clean-bins: ## Remove all binary files from bin/ directory
-	@echo "Cleaning bin/ directory..."
-	@rm -rf bin/
-	@echo "✓ bin/ directory cleaned"
+clean: ## Clean all build artifacts
+	@echo "Cleaning build artifacts..."
+	@rm -rf $(BIN_DIR)/ coverage.out coverage.html
+	@echo "✓ Clean completed"
 
-regen-autoport: build-servicemanager ## Regenerate autoport configuration from docker-compose.yml
-	@echo "Regenerating autoport configuration..."
-	@if [ ! -f "docker-compose.yml" ]; then \
-		echo "Error: docker-compose.yml not found in current directory"; \
-		echo "Please run this command from a directory containing docker-compose.yml"; \
-		exit 1; \
-	fi
-	@./bin/servicemanager -generate=docker-compose.yml
-	@echo "✓ Autoport configuration regenerated successfully"
+tidy: ## Tidy go modules and format code
+	@echo "Tidying modules and formatting..."
+	@go mod tidy
+	@go fmt ./...
+	@echo "✓ Tidy completed"
+
+mod-verify: ## Verify go modules
+	@echo "Verifying modules..."
+	@go mod verify
+	@go mod download
+	@echo "✓ Modules verified"
 
 help: ## Show available make targets
+	@echo "Shared Go Libraries Makefile"
+	@echo "Go version: $(GO_VERSION)"
+	@echo ""
 	@echo "Available targets:"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "Available build targets:"
+	@echo "  $(BUILD_TARGETS)"
