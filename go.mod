@@ -7,7 +7,6 @@ toolchain go1.24.3
 require (
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/gorilla/mux v1.8.1
 	github.com/mattn/go-runewidth v0.0.16
 	golang.org/x/term v0.33.0
 	google.golang.org/grpc v1.74.2
