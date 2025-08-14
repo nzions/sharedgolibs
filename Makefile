@@ -2,6 +2,7 @@
 
 build-tools: build-servicemanager build-binarycleaner build-envinfo build-waitlib build-gflag-demo ## Build all CLI tools
 
+
 build-servicemanager: ## Build the servicemanager CLI tool
 	@echo "Building servicemanager..."
 	@mkdir -p bin

@@ -337,6 +337,35 @@ go build -o bin/envinfo ./cmd/envinfo/
 #   * Whether curl or wget are available
 ```
 
+🌪️ File watcher and Docker container rebuilder - like Air but with native Docker integration:
+
+```bash
+
+# Basic usage
+
+# Features
+# - Native Go file watching (no shell scraping)
+# - Docker Compose integration with native Docker client
+# - Auto-detects Colima, Docker Desktop, and rootless Docker
+# - Debounced rebuilds prevent excessive builds
+# - REST API for status and events (port 8080)
+# - Web GUI for monitoring (port 8081)
+# - Real-time event streaming
+# - Concurrent build management
+# - Pre/post build command support
+# - Include/exclude file patterns
+# - Multiple watch directories and compose configs
+```
+
+**Quick Start:**
+2. Configure watch directories and Docker Compose files
+
+**Perfect for:**
+- Development workflow automation
+- Hot reloading Docker containers
+- Multi-service development environments
+- Continuous integration pipelines
+
 ## Usage
 
 ```go
